@@ -1,5 +1,7 @@
 # LL3M
 
+> **Notice:** The model used in the paper, [Claude Sonnet 3.7](https://platform.claude.com/docs/en/about-claude/model-deprecations#2025-10-28-claude-sonnet-3-7-model), has been retired. As a result, we have discontinued the LL3M server.
+
 
 
 
