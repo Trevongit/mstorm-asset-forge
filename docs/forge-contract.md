@@ -11,9 +11,9 @@ This document formalizes the input, output, and behavior contracts for the MStor
 
 ## 2. Input Contract (Request JSON Schema)
 
-The Forge accepts a JSON file via the `--file` flag.
+The Forge accepts a JSON file via the `--file` flag. It supports two root shapes: **Single Request** (Object) and **Batch Request** (List).
 
-### Schema
+### Single Request Schema (Object)
 ```json
 {
   "asset": {
@@ -22,6 +22,8 @@ The Forge accepts a JSON file via the `--file` flag.
     "scale": [float, float, float] (Optional, default [1.0, 1.0, 1.0])
   },
   "options": {
+    "shading": "flat|smooth (Optional, default 'flat')",
+    "author": "string (Optional, default 'MStorm Forge')",
     "no_preview": boolean (Optional, default false),
     "output_dir": "string (Optional, default 'outputs')",
     "tags": ["string", ...] (Optional)
@@ -29,10 +31,19 @@ The Forge accepts a JSON file via the `--file` flag.
 }
 ```
 
+### Batch Request Schema (List)
+A JSON list where each element follows the **Single Request Schema** structure.
+```json
+[
+  { "asset": { "name": "item1", "primitive": "cube" } },
+  { "asset": { "name": "item2", "primitive": "sphere" } }
+]
+```
+
 ### Validation Rules
-*   **Hard Fail:** Missing `asset.name` or `asset.primitive` in JSON.
-*   **Hard Fail:** Invalid JSON syntax.
-*   **Precedence:** CLI flags (e.g., `--name`) explicitly override values in the JSON file.
+*   **Hard Fail:** Missing `asset.name` or `asset.primitive` in JSON (for single mode).
+*   **Batch Behavior:** If an item in a batch fails, the Forge logs the error and continues to the next item. The process returns a non-zero exit code if any item failed.
+*   **Precedence:** CLI flags explicitly override values in the JSON file. In batch mode, specific CLI overrides (e.g., `--no-preview`, `--output-dir`, `--author`) are applied globally to all items.
 
 ---
 
@@ -58,12 +69,18 @@ outputs/
   "type": "static_prop",
   "format": "obj",
   "version": "1.0.0",
+  "author": "author_name",
   "generator": "MStorm Asset Forge v0.1",
   "timestamp": "ISO-8601-UTC",
+  "provenance": {
+    "source_type": "primitive",
+    "creation_command": "reproducible_command_string"
+  },
   "metadata": {
     "primitive": "primitive_type",
     "scale": [x, y, z],
     "unit_system": "metric",
+    "unit_scale": "1.0 unit = 1.0 meter",
     "is_rigged": false
   },
   "tags": ["base_tags", "user_tags", ...],

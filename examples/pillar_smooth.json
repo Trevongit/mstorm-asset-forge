@@ -1,0 +1,12 @@
+{
+  "asset": {
+    "name": "smooth_pillar",
+    "primitive": "cylinder",
+    "scale": [0.5, 0.5, 3.0]
+  },
+  "options": {
+    "shading": "smooth",
+    "author": "MStorm Architect",
+    "tags": ["architectural", "pillar", "smooth"]
+  }
+}

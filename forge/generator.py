@@ -1,7 +1,7 @@
 import textwrap
 import os
 
-def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), output_path="asset.obj", preview_path=None):
+def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), shading="flat", output_path="asset.obj", preview_path=None):
     """
     Generates a minimal Blender Python script to create a primitive, 
     render a preview, and export it as OBJ.
@@ -17,6 +17,13 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), out
     op = primitive_map.get(primitive.lower(), "bpy.ops.mesh.primitive_cube_add")
     
     abs_output_path = os.path.abspath(output_path)
+    
+    # Shading logic
+    shading_cmd = ""
+    if shading.lower() == "smooth":
+        shading_cmd = "bpy.ops.object.shade_smooth()"
+    else:
+        shading_cmd = "bpy.ops.object.shade_flat()"
     
     # Optional rendering logic
     render_logic = ""
@@ -64,6 +71,9 @@ obj.name = "{asset_name}"
 # Apply scale
 obj.scale = ({scale[0]}, {scale[1]}, {scale[2]})
 bpy.ops.object.transform_apply(scale=True)
+
+# Apply shading
+{shading_cmd}
 
 {render_logic}
 

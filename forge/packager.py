@@ -13,7 +13,9 @@ def prepare_package_dir(output_root, asset_name):
     os.makedirs(package_path, exist_ok=True)
     return package_path
 
-def write_manifest(package_path, asset_name, primitive, scale, tags=None, preview_file=None, version="1.0.0"):
+def write_manifest(package_path, asset_name, primitive, scale, 
+                   tags=None, preview_file=None, author="MStorm Forge", 
+                   creation_command=None, version="1.0.0"):
     """
     Writes a manifest.json file to the package directory.
     """
@@ -36,12 +38,18 @@ def write_manifest(package_path, asset_name, primitive, scale, tags=None, previe
         "type": "static_prop",
         "format": "obj",
         "version": version,
+        "author": author,
         "generator": "MStorm Asset Forge v0.1",
         "timestamp": manifest_timestamp,
+        "provenance": {
+            "source_type": "primitive",
+            "creation_command": creation_command or "Manual"
+        },
         "metadata": {
             "primitive": primitive,
             "scale": scale,
             "unit_system": "metric",
+            "unit_scale": "1.0 unit = 1.0 meter",
             "is_rigged": False
         },
         "tags": final_tags

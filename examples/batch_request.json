@@ -1,0 +1,32 @@
+[
+  {
+    "asset": {
+      "name": "batch_cube",
+      "primitive": "cube"
+    },
+    "options": {
+      "tags": ["batch", "test"]
+    }
+  },
+  {
+    "asset": {
+      "name": "batch_sphere_smooth",
+      "primitive": "sphere",
+      "scale": [1.2, 1.2, 1.2]
+    },
+    "options": {
+      "shading": "smooth",
+      "tags": ["batch", "high_poly"]
+    }
+  },
+  {
+    "asset": {
+      "name": "batch_pillar",
+      "primitive": "cylinder",
+      "scale": [0.5, 0.5, 4.0]
+    },
+    "options": {
+      "author": "Batch Automator"
+    }
+  }
+]
