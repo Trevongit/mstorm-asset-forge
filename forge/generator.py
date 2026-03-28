@@ -1,9 +1,10 @@
 import textwrap
 import os
 
-def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), output_path="asset.obj"):
+def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), output_path="asset.obj", preview_path=None):
     """
-    Generates a minimal Blender Python script to create a primitive and export it as OBJ.
+    Generates a minimal Blender Python script to create a primitive, 
+    render a preview, and export it as OBJ.
     """
     # Map primitives to Blender ops
     primitive_map = {
@@ -15,9 +16,38 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), out
     
     op = primitive_map.get(primitive.lower(), "bpy.ops.mesh.primitive_cube_add")
     
-    # We use os.path.abspath to ensure Blender writes to the correct location
     abs_output_path = os.path.abspath(output_path)
     
+    # Optional rendering logic
+    render_logic = ""
+    if preview_path:
+        abs_preview_path = os.path.abspath(preview_path)
+        render_logic = f"""
+# --- Preview Rendering ---
+print("Blender: Setting up preview render...")
+# Setup Camera
+bpy.ops.object.camera_add(location=(7.0, -7.0, 5.0), rotation=(1.1, 0, 0.785))
+bpy.context.scene.camera = bpy.context.active_object
+
+# Setup Light
+bpy.ops.object.light_add(type='SUN', location=(5, 5, 10))
+bpy.context.active_object.data.energy = 5.0
+
+# Render settings (Eevee baseline)
+bpy.context.scene.render.image_settings.file_format = 'PNG'
+bpy.context.scene.render.filepath = '{abs_preview_path}'
+bpy.context.scene.render.resolution_x = 512
+bpy.context.scene.render.resolution_y = 512
+bpy.context.scene.render.resolution_percentage = 100
+
+print(f"Blender: Rendering preview to {{'{abs_preview_path}'}}")
+try:
+    bpy.ops.render.render(write_still=True)
+    print("Blender: Preview render SUCCESS.")
+except Exception as e:
+    print(f"Blender: Preview render FAILED: {{e}}")
+"""
+
     script = f"""
 import bpy
 import os
@@ -35,7 +65,9 @@ obj.name = "{asset_name}"
 obj.scale = ({scale[0]}, {scale[1]}, {scale[2]})
 bpy.ops.object.transform_apply(scale=True)
 
-# Export to OBJ (Baseline Format)
+{render_logic}
+
+# --- Export ---
 print(f"Blender: Exporting to {{'{abs_output_path}'}}")
 if hasattr(bpy.ops.wm, 'obj_export'):
     bpy.ops.wm.obj_export(filepath='{abs_output_path}', export_selected_objects=True)
