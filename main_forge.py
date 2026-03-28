@@ -4,9 +4,10 @@ import sys
 import json
 from forge.generator import generate_bpy_script
 from forge.packager import prepare_package_dir, write_manifest
+from forge.agent import interpret_prompt
 from blender.headless import execute_headless_blender
 
-def forge_item(asset_params, options, global_command):
+def forge_item(asset_params, options, global_command, dry_run=False):
     """
     Processes a single asset request.
     Returns (bool success, str message)
@@ -23,6 +24,11 @@ def forge_item(asset_params, options, global_command):
 
     print(f"\n>>> Forge Item: '{name}' ({primitive}) <<<")
     
+    if dry_run:
+        print(f"DRY RUN: Would create '{name}' as a {primitive} with {shading} shading.")
+        print(f"DRY RUN: Scale: {scale_tuple}, Author: {author}, Output: {output_dir}")
+        return True, "Dry run successful"
+
     # 1. Prepare Package Directory
     try:
         package_path = prepare_package_dir(output_dir, name)
@@ -71,6 +77,8 @@ def forge_item(asset_params, options, global_command):
 def main():
     parser = argparse.ArgumentParser(description="MStorm Asset Forge - OBJ Baseline Pipeline")
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
+    parser.add_argument("-p", "--prompt", type=str, help="Natural language request (e.g., 'a smooth tall cylinder')")
+    parser.add_argument("--dry-run", action="store_true", help="Interpret and validate without running Blender")
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
     parser.add_argument("--scale", type=str, help="Comma-separated scale (x,y,z)")
@@ -86,20 +94,27 @@ def main():
     requests = []
 
     # 1. Resolve Requests
-    if args.file:
+    if args.prompt:
+        # Natural Language Mode
+        print(f"Agent: Interpreting prompt: '{args.prompt}'...")
+        req, msg = interpret_prompt(args.prompt)
+        if not req:
+            print(f"Agent Error: {msg}")
+            sys.exit(1)
+        print(f"Agent: {msg}")
+        requests = [req]
+        
+    elif args.file:
+        # JSON File Mode
         if not os.path.exists(args.file):
             print(f"Error: Request file not found: {args.file}")
             sys.exit(1)
-        
         try:
             with open(args.file, 'r') as f:
                 data = json.load(f)
-            
             if isinstance(data, list):
-                # Batch Mode
                 requests = data
             elif isinstance(data, dict):
-                # Single Request Mode (legacy/standard)
                 requests = [data]
             else:
                 print("Error: Invalid JSON root. Must be an object or a list.")
@@ -108,7 +123,7 @@ def main():
             print(f"Error: Failed to parse request file JSON: {e}")
             sys.exit(1)
     else:
-        # Pure CLI Mode: Create a synthetic request
+        # Pure CLI Mode
         requests = [{
             "asset": {
                 "name": args.name or "prop",
@@ -129,14 +144,17 @@ def main():
     is_batch = total > 1
     results = []
 
+    if args.dry_run:
+        print("--- DRY RUN MODE ENABLED ---")
+
     print(f"--- MStorm Asset Forge: Processing {total} request(s) ---")
 
     for i, req in enumerate(requests):
         asset_data = req.get("asset", {})
         options_data = req.get("options", {})
 
-        # Validation for JSON-sourced items
-        if args.file:
+        # Validation for non-CLI sourced items
+        if args.file or args.prompt:
             missing = []
             if "name" not in asset_data: missing.append("asset.name")
             if "primitive" not in asset_data: missing.append("asset.primitive")
@@ -145,13 +163,12 @@ def main():
                 results.append((False, asset_data.get("name", f"item_{i}"), "Missing fields"))
                 continue
 
-        # Global CLI Overrides (Applied to every item)
+        # Global CLI Overrides
         if args.output_dir is not None: options_data["output_dir"] = args.output_dir
         if args.no_preview is not None: options_data["no_preview"] = args.no_preview
         if args.author is not None: options_data["author"] = args.author
         
-        # Single-item explicit overrides (only relevant if not in batch mode or applied to all)
-        # For Slice 8, as per rules: name/primitive/scale only override in SINGLE mode
+        # Single-item explicit overrides
         if not is_batch:
             if args.name is not None: asset_data["name"] = args.name
             if args.primitive is not None: asset_data["primitive"] = args.primitive
@@ -160,7 +177,7 @@ def main():
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 
-        success, msg = forge_item(asset_data, options_data, full_command)
+        success, msg = forge_item(asset_data, options_data, full_command, dry_run=args.dry_run)
         results.append((success, asset_data.get("name"), msg))
 
     # 3. Final Summary
