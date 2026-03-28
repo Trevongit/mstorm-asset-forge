@@ -1,0 +1,12 @@
+{
+  "asset": {
+    "name": "table_prop",
+    "primitive": "cube",
+    "scale": [1.5, 2.0, 0.1]
+  },
+  "options": {
+    "no_preview": false,
+    "output_dir": "outputs/tables",
+    "tags": ["furniture", "wood", "large"]
+  }
+}
