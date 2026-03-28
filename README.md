@@ -28,6 +28,13 @@ The **MStorm Asset Forge** is a local-first bridge for generating and assembling
 ## Documentation
 For full technical specifications on inputs, outputs, and CLI behavior, see the [MStorm Asset Forge — Package Contract (MVP v0.1)](docs/forge-contract.md).
 
+## Attribution & License
+This project is a standalone local fork and adaptation of the **LL3M** project, originally developed by **Threedle at the University of Chicago**.
+
+*   **Project Origin:** [LL3M (GitHub)](https://github.com/threedle/ll3m)
+*   **Detailed Attribution:** See [NOTICE.md](NOTICE.md) for origin, attribution, and licensing summaries.
+*   **Legal Text:** See [LICENSE](LICENSE) for the definitive and controlling license terms.
+
 ---
 
 ## Limitations
@@ -38,4 +45,4 @@ For full technical specifications on inputs, outputs, and CLI behavior, see the 
 ---
 
 ## Technical History (Legacy LL3M)
-*This project was originally the client for LL3M (multi-agent 3D generation). The legacy cloud-client code (auth, polling, cloud-specific utilities) is currently deprecated and will be removed in future cleanup slices.*
+*This project was originally the client for LL3M. The legacy cloud-client code is currently archived or removed to focus on standalone local orchestration.*

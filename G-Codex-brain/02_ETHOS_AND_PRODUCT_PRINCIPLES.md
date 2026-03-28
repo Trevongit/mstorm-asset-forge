@@ -3,6 +3,11 @@
 ## Vision
 **MStorm Asset Forge** is a local-first bridge for generating and assembling 3D assets for **MStorm Studio 2026**. It transforms abstract requests into structured, MStorm-compatible packages via local Blender orchestration.
 
+## Origin & Identity
+*   **Fork/Origin:** A standalone local adaptation of the **LL3M** project.
+*   **Original Authors:** Threedle at the University of Chicago.
+*   **Project Identity:** Focused on being an independent local auxiliary tool for MStorm.
+
 ## Product Principles (Static Prop Focus)
 1.  **Static Prop Priority:** MVP only supports static objects (no rigs, no characters, no animation).
 2.  **Local-First:** No reliance on cloud-only black boxes for core generation.
