@@ -9,3 +9,12 @@ blender4.4_pdfs/
 .env
 logs/
 downloads/
+
+# MStorm Asset Forge Outputs
+outputs/
+proof_package_*/
+
+# Temporary and Scratch Areas
+temp_bpy_script.py
+experiments/
+*.blend1
