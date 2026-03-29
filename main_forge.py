@@ -5,7 +5,7 @@ import json
 import re
 import datetime
 from forge.generator import generate_bpy_script
-from forge.packager import prepare_package_dir, write_manifest, write_run_report
+from forge.packager import prepare_package_dir, write_manifest, write_run_report, update_global_registry
 from forge.agent import interpret_prompt
 from forge.safety import validate_snippet
 from blender.headless import execute_headless_blender
@@ -13,6 +13,7 @@ from blender.headless import execute_headless_blender
 def forge_item(asset_params, options, global_command, dry_run=False, llm_metadata=None):
     """
     Processes a single asset request.
+    Returns (bool success, str message, dict result_info)
     """
     name = asset_params.get("name", "prop")
     primitive = asset_params.get("primitive", "cube")
@@ -23,6 +24,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     subdivisions = int(options.get("subdivisions", 0))
     auto_smooth = bool(options.get("auto_smooth", False))
     fmt = options.get("format", "obj")
+    category = options.get("category")
     
     python_code = options.get("python_code")
     experimental_mode = options.get("experimental_mode", False)
@@ -57,20 +59,17 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             return False, result_info["error"], result_info
 
     print(f"\n>>> Forge Item: '{name}' ({primitive}) <<<")
-    if experimental_mode:
-        print("Forge: EXPERIMENTAL sandbox mode enabled.")
     
     if dry_run:
         print(f"DRY RUN: Validation passed for '{name}'.")
-        if python_code:
-            print(f"DRY RUN: Python Snippet:\n---\n{python_code}\n---")
         result_info["status"] = "dry_run"
         return True, "Dry run successful", result_info
 
     # 1. Prepare Package Directory
     try:
         package_path = prepare_package_dir(output_dir, name)
-        result_info["package_path"] = os.path.relpath(package_path, output_dir)
+        rel_package_path = os.path.relpath(package_path, output_dir)
+        result_info["package_path"] = rel_package_path
         print(f"Forge: Created package directory: {package_path}")
     except Exception as e:
         result_info["error"] = str(e)
@@ -110,7 +109,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         final_preview = None
         if preview_path and os.path.exists(preview_path):
             final_preview = preview_file
-            result_info["preview_path"] = os.path.join(result_info["package_path"], preview_file)
+            result_info["preview_path"] = os.path.join(rel_package_path, preview_file)
             print(f"Forge: Preview rendered successfully.")
             
         parametric_options = {
@@ -122,7 +121,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
 
         source_type = "agent_bpy_sandbox" if python_code else "primitive"
 
-        write_manifest(
+        manifest_path, asset_id, timestamp = write_manifest(
             package_path, name, primitive, scale_tuple, 
             tags=tags_list,
             preview_file=final_preview,
@@ -132,9 +131,26 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             parametric_options=parametric_options,
             source_type=source_type,
             experimental_mode=experimental_mode,
-            llm_metadata=llm_metadata
+            llm_metadata=llm_metadata,
+            entry_point=asset_file,
+            format=fmt
         )
-        print(f"Forge: Successfully packaged '{name}'")
+        print(f"Forge: Manifest written to {manifest_path}")
+        
+        # --- Update Global Registry ---
+        registry_info = {
+            "asset_id": asset_id,
+            "name": name,
+            "category": category,
+            "format": fmt,
+            "entry_point": os.path.join(rel_package_path, asset_file),
+            "preview_path": result_info["preview_path"],
+            "package_path": rel_package_path,
+            "timestamp": timestamp
+        }
+        update_global_registry(output_dir, registry_info)
+        
+        print(f"Forge: Successfully packaged and indexed '{name}'")
         result_info["status"] = "success"
         return True, "Success", result_info
     else:
@@ -144,7 +160,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         return False, err_msg, result_info
 
 def main():
-    parser = argparse.ArgumentParser(description="MStorm Asset Forge - OBJ Baseline Pipeline")
+    parser = argparse.ArgumentParser(description="MStorm Asset Forge - OBJ/GLB Production Pipeline")
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
     parser.add_argument("-p", "--prompt", type=str, help="Natural language request")
     parser.add_argument("--prompt-to-bpy", action="store_true", help="Experimental: Allow LLM to generate geometry code")
@@ -161,6 +177,7 @@ def main():
     parser.add_argument("--subdivisions", type=int, help="Subdivision levels (0-5)")
     parser.add_argument("--auto-smooth", action="store_true", default=None, help="Enable auto-smooth")
     parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Export format")
+    parser.add_argument("--category", type=str, help="Asset category (e.g., furniture, decor)")
     
     parser.add_argument("--author", type=str, help="Asset author name")
     parser.add_argument("--output-dir", type=str, help="Output root directory")
@@ -222,6 +239,7 @@ def main():
                 "subdivisions": args.subdivisions or 0,
                 "auto_smooth": args.auto_smooth if args.auto_smooth is not None else False,
                 "format": args.format or "obj",
+                "category": args.category,
                 "author": args.author or "MStorm Forge",
                 "output_dir": args.output_dir or "outputs",
                 "tags": [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else [],
@@ -260,6 +278,7 @@ def main():
         if args.output_dir is not None: options_data["output_dir"] = args.output_dir
         if args.no_preview is not None: options_data["no_preview"] = args.no_preview
         if args.author is not None: options_data["author"] = args.author
+        if args.category is not None: options_data["category"] = args.category
         
         output_dir_final = options_data.get("output_dir", "outputs")
 
@@ -272,6 +291,7 @@ def main():
             if args.subdivisions is not None: options_data["subdivisions"] = args.subdivisions
             if args.auto_smooth is not None: options_data["auto_smooth"] = args.auto_smooth
             if args.format is not None: options_data["format"] = args.format
+            if args.category is not None: options_data["category"] = args.category
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 

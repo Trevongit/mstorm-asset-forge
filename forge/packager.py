@@ -17,11 +17,13 @@ def write_manifest(package_path, asset_name, primitive, scale,
                    tags=None, preview_file=None, author="MStorm Forge", 
                    creation_command=None, geometry_stats=None, 
                    parametric_options=None, source_type="primitive",
-                   experimental_mode=False, llm_metadata=None, version="1.0.0"):
+                   experimental_mode=False, llm_metadata=None, 
+                   entry_point=None, format="obj", version="1.0.0"):
     """
     Writes a manifest.json file to the package directory.
     """
-    manifest_timestamp = datetime.datetime.now(datetime.UTC).isoformat() + "Z"
+    # Fix: Consistent ISO with Z suffix, avoid redundant +00:00
+    manifest_timestamp = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     asset_id = str(uuid.uuid4())
     
     final_tags = ["generated", "mvp", "prop", primitive.lower()]
@@ -46,7 +48,8 @@ def write_manifest(package_path, asset_name, primitive, scale,
         "asset_id": asset_id,
         "name": asset_name,
         "type": "static_prop",
-        "format": "obj",
+        "format": format, # Fixed: using dynamic format
+        "entry_point": entry_point,
         "version": version,
         "author": author,
         "generator": "MStorm Asset Forge v0.1",
@@ -74,7 +77,7 @@ def write_manifest(package_path, asset_name, primitive, scale,
     with open(manifest_path, 'w') as f:
         json.dump(manifest, f, indent=4)
         
-    return manifest_path
+    return manifest_path, asset_id, manifest_timestamp
 
 def write_run_report(output_dir, run_metadata, asset_results):
     """
@@ -93,4 +96,47 @@ def write_run_report(output_dir, run_metadata, asset_results):
         return report_path
     except Exception as e:
         print(f"Forge: WARNING - Could not write run report to {report_path}: {e}")
+        return None
+
+def update_global_registry(output_root, asset_info):
+    """
+    Upserts an asset entry into the global registry.json using package_path as key.
+    """
+    registry_path = os.path.join(output_root, "registry.json")
+    
+    registry = {"last_updated": None, "assets": []}
+    if os.path.exists(registry_path):
+        try:
+            with open(registry_path, 'r') as f:
+                registry = json.load(f)
+        except Exception as e:
+            print(f"Forge: WARNING - Could not read registry, starting fresh: {e}")
+
+    # STABLE KEY: package_path (the unique folder name)
+    # This prevents duplicate entries when re-indexing the same package
+    assets = registry.get("assets", [])
+    pkg_path = asset_info.get("package_path")
+    
+    updated_assets = []
+    found = False
+    for a in assets:
+        if a.get("package_path") == pkg_path:
+            updated_assets.append(asset_info)
+            found = True
+        else:
+            updated_assets.append(a)
+            
+    if not found:
+        updated_assets.append(asset_info)
+        
+    registry["assets"] = updated_assets
+    registry["last_updated"] = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
+    
+    try:
+        os.makedirs(output_root, exist_ok=True)
+        with open(registry_path, 'w') as f:
+            json.dump(registry, f, indent=4)
+        return registry_path
+    except Exception as e:
+        print(f"Forge: WARNING - Could not update global registry: {e}")
         return None

@@ -23,6 +23,7 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
   },
   "options": {
     "format": "obj|glb (Optional, default 'obj')",
+    "category": "string (Optional, e.g., 'furniture')",
     "shading": "flat|smooth (Optional, default 'flat')",
     "bevel": "float (Optional, non-negative, default 0.0)",
     "subdivisions": "int (Optional, 0-5, default 0)",
@@ -36,13 +37,6 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
 }
 ```
 
-### Validation Rules
-*   **Hard Fail:** Missing `asset.name` or `asset.primitive` in standard mode.
-*   **Sandbox Safety (Experimental):** If `options.python_code` is provided, it is strictly validated. 
-    *   **Blacklist:** Forbidden terms include `import`, `open`, `exec`, `eval`, `os`, `sys`, `subprocess`, etc.
-    *   **Allowlist Pattern:** Snippets MUST contain geometry operators like `bpy.ops.mesh.*`.
-*   **Batch Behavior:** If an item in a batch fails, the Forge logs the error and continues to the next item.
-
 ---
 
 ## 3. Output Contract (Package Structure)
@@ -52,12 +46,33 @@ The Forge produces a timestamped directory containing the following artifacts:
 ### Package Folder Tree
 ```text
 outputs/
+├── registry.json       # Global library index (Upsert-based)
 └── <YYYYMMDD_HHMMSS>_<asset_name>/
     ├── asset.obj       # The 3D model (if format=obj)
     ├── asset.mtl       # Associated material library (if format=obj)
     ├── asset.glb       # The 3D model (if format=glb)
     ├── manifest.json   # Asset metadata (Required)
     └── preview.png     # Rendered preview (Optional, non-fatal)
+```
+
+### Global Registry Schema (`registry.json`)
+The `registry.json` file at the root of the output directory serves as the primary library index for consumers.
+```json
+{
+  "last_updated": "ISO-8601-UTC",
+  "assets": [
+    {
+      "asset_id": "uuid-v4",
+      "name": "asset_name",
+      "category": "string | null",
+      "format": "obj|glb",
+      "entry_point": "package_folder/asset.ext",
+      "preview_path": "package_folder/preview.png",
+      "package_path": "package_folder",
+      "timestamp": "ISO-8601-UTC"
+    }
+  ]
+}
 ```
 
 ### Manifest Schema (`manifest.json`)
@@ -67,6 +82,7 @@ outputs/
   "name": "asset_name",
   "type": "static_prop",
   "format": "obj|glb",
+  "entry_point": "asset.ext",
   "version": "1.0.0",
   "author": "author_name",
   "generator": "MStorm Asset Forge v0.1",
@@ -75,8 +91,8 @@ outputs/
     "source_type": "primitive | agent_bpy_sandbox",
     "creation_command": "reproducible_command_string",
     "experimental_mode": boolean (Optional),
-    "provider": "string (Optional, e.g., 'openai')",
-    "model": "string (Optional, e.g., 'gpt-4o-mini')"
+    "provider": "string (Optional)",
+    "model": "string (Optional)"
   },
   "metadata": {
     "primitive": "primitive_type",
@@ -100,7 +116,5 @@ outputs/
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
-*   **Experimental Sandbox Mode:** Triggered via `--prompt-to-bpy`. Allows LLM-generated code snippets for geometry generation only.
-*   **Modifier Behavior:** Parametric modifiers are applied sequentially (Bevel then Subdivision) after the core geometry is created (whether by primitive or snippet).
-*   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.
-*   **Format Notes:** GLB export requires `numpy` to be available in the Blender Python environment.
+*   **Global Registry:** Every successful generation run automatically updates `outputs/registry.json`. If an `asset_id` already exists, its entry is updated (upsert).
+*   **Asset Entry Point:** Consumers should always use the `entry_point` field in the manifest or registry to locate the primary model file.
