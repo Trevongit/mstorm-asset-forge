@@ -244,6 +244,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             "archive_path": archive_file,
             "timestamp": timestamp,
             "validation_success": val_success,
+            "has_warnings": len(val_warnings) > 0,
             "validation_profile": val_profile,
             "dimensions": geometry_stats.get("dimensions") if geometry_stats else None,
             "material_summary": {
@@ -292,6 +293,13 @@ def main():
     parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Filter list by format")
     parser.add_argument("--profile", type=str, choices=["mobile", "standard", "high_fidelity"], help="Filter list by validation profile")
     
+    # Rich Explorer Filters
+    parser.add_argument("--validation-status", type=str, choices=["ok", "warn", "failed"], help="Filter list by validation status")
+    parser.add_argument("--is-emissive", action="store_true", help="Filter list for emissive assets")
+    parser.add_argument("--is-metallic", action="store_true", help="Filter list for metallic assets")
+    parser.add_argument("--is-transparent", action="store_true", help="Filter list for transparent assets")
+    parser.add_argument("--view", type=str, choices=["compact", "detailed"], default="detailed", help="Explorer view mode")
+    
     # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane", "table", "stool", "crate"], help="Primitive or Modular Prop type")
@@ -325,30 +333,55 @@ def main():
 
     # --- Explorer Path ---
     if args.list:
+        explorer_filters = {
+            "profile": args.profile,
+            "validation_status": args.validation_status,
+            "is_emissive": args.is_emissive,
+            "is_metallic": args.is_metallic,
+            "is_transparent": args.is_transparent
+        }
+        # Filter out None values
+        explorer_filters = {k: v for k, v in explorer_filters.items() if v is not None and v is not False}
+
         assets = get_library_list(
             output_dir_final, 
             category_filter=args.category, 
             format_filter=args.format,
-            sort_by=args.sort
+            sort_by=args.sort,
+            filters=explorer_filters
         )
-        # Handle --profile filter locally for now if not in packager.py
-        if args.profile:
-            assets = [a for a in assets if a.get("validation_profile") == args.profile]
 
         if args.json:
             print(json.dumps(assets, indent=2))
         else:
             print(f"Forge: Library Assets in '{output_dir_final}' (sorted by {args.sort}):")
             if not assets:
-                print(" No assets found.")
+                print(" No assets found matching criteria.")
             for a in assets:
-                cat = f" [{a.get('category')}]" if a.get('category') else ""
-                val_status = "OK" if a.get('validation_success') else "WARN"
-                profile = f" | {a.get('validation_profile', 'std')}"
-                dims = a.get('dimensions')
-                dim_str = f" | {dims['x']}x{dims['y']}x{dims['z']}m" if dims else ""
-                preset = f" | {a.get('preset')}" if a.get('preset') else ""
-                print(f" - {a.get('name')}{cat} ({a.get('format')}) [{val_status}{profile}{preset}{dim_str}] -> {a.get('package_path')}")
+                if args.view == "compact":
+                    print(f" - {a.get('name')} ({a.get('format')}) -> {a.get('package_path')}")
+                else:
+                    # Detailed View
+                    cat = f" [{a.get('category')}]" if a.get('category') else ""
+                    is_success = a.get('validation_success', True)
+                    has_warn = a.get('has_warnings', False)
+                    val_status = "OK" if (is_success and not has_warn) else ("WARN" if has_warn else "FAIL")
+                    
+                    profile = f" | Profile: {a.get('validation_profile', 'std')}"
+                    dims = a.get('dimensions')
+                    dim_str = f" | Size: {dims['x']}x{dims['y']}x{dims['z']}m" if dims else ""
+                    preset = f" | Preset: {a.get('preset')}" if a.get('preset') else ""
+                    
+                    ms = a.get('material_summary', {})
+                    mat_parts = []
+                    if ms.get('metallic', 0) > 0: mat_parts.append("Metal")
+                    if ms.get('emissive'): mat_parts.append("Emit")
+                    if ms.get('alpha', 1.0) < 1.0: mat_parts.append("Alpha")
+                    mat_str = f" | Traits: {','.join(mat_parts)}" if mat_parts else ""
+
+                    print(f" - {a.get('name')}{cat} ({a.get('format')})")
+                    print(f"   Status: {val_status}{profile}{preset}{dim_str}{mat_str}")
+                    print(f"   Path:   {a.get('package_path')}")
         sys.exit(0)
 
     if args.info:

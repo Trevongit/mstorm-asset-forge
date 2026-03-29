@@ -335,7 +335,7 @@ def sync_assets_to_project(output_root, target_path, name_filter=None, category_
         "errors": errors
     }
 
-def get_library_list(output_root, category_filter=None, format_filter=None, sort_by="date"):
+def get_library_list(output_root, category_filter=None, format_filter=None, sort_by="date", filters=None):
     """
     Returns a list of assets from registry.json with filtering and sorting.
     """
@@ -351,18 +351,41 @@ def get_library_list(output_root, category_filter=None, format_filter=None, sort
 
     assets = registry.get("assets", [])
     filtered = []
+    
+    if filters is None:
+        filters = {}
+
     for a in assets:
+        # Legacy/Base filters
         if category_filter and a.get("category") != category_filter:
             continue
         if format_filter and a.get("format") != format_filter:
             continue
+            
+        # Rich Explorer Filters
+        if "validation_status" in filters:
+            status = filters["validation_status"]
+            is_success = a.get("validation_success", True)
+            has_warnings = a.get("has_warnings", False)
+            if status == "ok" and (not is_success or has_warnings): continue
+            if status == "warn" and (not is_success or not has_warnings): continue
+            if status == "failed" and is_success: continue # Note: failed items rarely in registry by design
+
+        if filters.get("is_emissive") and not a.get("material_summary", {}).get("emissive"):
+            continue
+        if filters.get("is_metallic") and a.get("material_summary", {}).get("metallic", 0) <= 0:
+            continue
+        if filters.get("is_transparent") and a.get("material_summary", {}).get("alpha", 1.0) >= 1.0:
+            continue
+        if "profile" in filters and a.get("validation_profile") != filters["profile"]:
+            continue
+
         filtered.append(a)
         
     # Sorting
     if sort_by == "name":
         filtered.sort(key=lambda x: x.get("name", "").lower())
     elif sort_by == "date":
-        # Registry is usually appended to, but we ensure descending date (latest first)
         filtered.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         
     return filtered
@@ -382,7 +405,6 @@ def get_asset_info(output_root, asset_name):
         return None
 
     # Find the latest matching asset name
-    # We iterate backwards to find the most recent entry if logic allows duplicates
     target = None
     for a in reversed(registry.get("assets", [])):
         if a.get("name") == asset_name:
