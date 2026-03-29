@@ -12,10 +12,13 @@ The **MStorm Asset Forge** is a local-first bridge for generating and assembling
 *   **Handoff Tools:** Project-aware `--sync` and safety-first `--prune` maintenance.
 *   **Visuals:** Automated adaptive bounding-box aware previews.
 
-## Engineering Resources
-*   **[Engineering Roadmap](docs/engineering-roadmap.md):** Future phases and logical slices.
-*   **[Development Continuation Guide](docs/development-continuation-guide.md):** How to pick up and continue development.
+## Documentation & Guidance
+*   **[Quick-Start Guide](docs/quick-start.md):** The fastest path to generating your first assets.
+*   **[MStorm Integration](docs/mstorm-integration.md):** How to integrate the forge with Studio and external tools.
 *   **[Package Contract](docs/forge-contract.md):** Technical specification for inputs and outputs.
+*   **[Engineering Roadmap](docs/engineering-roadmap.md):** Planned phases and development slices.
+*   **[Future Concept: GUI](docs/future-launcher-concept.md):** The vision for a one-click launcher and viewer.
+*   **[Development Guide](docs/development-continuation-guide.md):** For engineers joining the project.
 
 ## Quick Start
 1.  **Requirement:** Blender 4.0+ must be installed and in your `PATH`.
