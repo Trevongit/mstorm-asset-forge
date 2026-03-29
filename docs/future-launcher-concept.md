@@ -1,40 +1,42 @@
-# Future Concept — One-Click Launcher & GUI
+# Future Concept — Local Launcher & Demo Viewer
 
-This document outlines the conceptual direction for a future graphical interface for the **MStorm Asset Forge**. 
+This document outlines the conceptual vision for a graphical user interface (GUI) wrapper for the **MStorm Asset Forge**. 
 
-## 1. Vision: The "One-Click" Forge
-The Forge is currently a high-fidelity CLI tool. To expand accessibility to non-technical artists and designers, a lightweight local wrapper is envisioned.
+> **Note:** This GUI does not yet exist. It is a planned developmental arc that builds on the current stable CLI backend.
 
-### Key Goals:
-*   **Visual Discovery:** Transform the `registry.json` into a visual gallery.
-*   **Zero-Config Generation:** Provide a "Quick Forge" button for common props.
-*   **Live Preview:** Integrated model viewer for both GLB and OBJ exports.
+## 1. Vision: The "Zero-Friction" Forge
+The Forge is currently a high-fidelity technical tool. To expand its reach to non-technical designers, a lightweight local GUI is envisioned to surface its capabilities visually.
 
----
+## 2. Key Modules
 
-## 2. Envisioned UX Modules
+### One-Click Generator
+*   A "Forge Dashboard" with prominent buttons for common presets (e.g., "Dining Table", "Crate").
+*   Real-time parameter sliders for scale, color, and metallic properties.
+*   A playful "Demo Mode" that auto-generates variations of an asset family.
 
-### A. The Dashboard (Home)
-*   **"Forge of the Day":** A random high-quality preset (e.g., "Dining Table") with a prominent **Forge It!** button.
-*   **Recent Activity:** Quick links to the last 5 generated packages.
-*   **One-Click Sync:** A "Sync All to Project" button based on a saved target path.
+### Visual Asset Gallery
+*   A visual browser powered by `registry.json`.
+*   Asset "cards" displaying the generated `preview.png`.
+*   Badges for validation status (OK/WARN), format (GLB/OBJ), and dimensions.
 
-### B. The Asset Browser (Gallery)
-*   **Visual Cards:** Each asset shown as a card using its generated `preview.png`.
-*   **Metadata Badges:** Visual indicators for polycount (Low/High), format (GLB/OBJ), and validation status (Pass/Warn).
-*   **Interactive Filters:** Side-bar for filtering by Category, Material (Metallic/Emissive), or Validation Profile.
-
-### C. The "Demo Mode" (Fun Path)
-*   A playful mode for showcasing the forge's speed.
-*   **"Auto-Forge" loop:** Randomly generates variations of a preset family and displays them in a carousel.
-*   Useful for stress-testing and "infinite" prop brainstorming.
+### Integrated Demo Viewer
+*   A 3D viewport using a lightweight GLB/OBJ viewer (e.g., Three.js or similar).
+*   Allows users to "see it working" immediately after generation without opening external DCC tools.
 
 ---
 
-## 3. Technical Implementation Strategy
-*   **Unchanged Backend:** The GUI will remain a wrapper around `main_forge.py`. It will communicate solely by executing CLI commands or reading the `registry.json`.
-*   **Local Web-UI:** Recommended technology is a lightweight FastAPI or Flask server serving a React/Vue frontend, or a standalone Electron unit.
-*   **Discovery Engine:** The GUI will rely on the enriched registry implemented in Phase 6 Slice 3.
+## 3. Staged Implementation Path
 
-## 4. Why This Matters
-Providing a graphical entry point lowers the barrier to entry, increases the "confidence-building" factor for new users, and provides an immediate way to visualize the forge's outputs without leaving the environment.
+1.  **Phase A: Launcher Wrapper**
+    *   A simple GUI that maps form inputs to `main_forge.py` CLI commands.
+    *   Surfaces the CLI stdout in a scrolled window.
+
+2.  **Phase B: Local Library Browser**
+    *   Implements the Gallery view over the current `outputs/` folder.
+    *   Provides "Sync to Project" buttons next to each asset card.
+
+3.  **Phase C: Rich Previewer**
+    *   Integrates the 3D viewer and "Demo Mode" auto-generator.
+
+## 4. Technical Continuity
+The GUI will remain a pure wrapper. All generation, validation, and indexing logic will continue to live in the core Python backend, ensuring the **stabled deterministic contract** is preserved regardless of the interface used.

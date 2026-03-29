@@ -1,68 +1,45 @@
 # User Quick-Start Guide
 
-Get up and running with the **MStorm Asset Forge** in less than 2 minutes.
+Follow this path for immediate success with the **MStorm Asset Forge**.
 
-## 1. Generate Your First Asset
-The fastest way to see the forge in action is to generate a standard primitive.
+## 1. First Successful Command
+Generate a high-quality GLB sphere with PBR materials.
 
-**Generate a shiny gold sphere (GLB):**
 ```bash
-python3 main_forge.py --name "gold_orb" --primitive "sphere" --format "glb" --color "#FFD700" --metallic 1.0 --roughness 0.1
+python3 main_forge.py --name "first_asset" --primitive "sphere" --format "glb" --color "#00AAFF" --metallic 0.8 --roughness 0.2
 ```
 
-**Generate a basic chair using a preset:**
-```bash
-python3 main_forge.py --name "my_chair" --preset "chair_basic" --format "glb"
-```
+## 2. Recommended Daily Workflow
 
----
-
-## 2. Explore Your Library
-Once you've generated some assets, you can browse them directly from the CLI.
-
-**List all assets (latest first):**
+### Browse Your Library
+List all assets, sorted by date (newest first).
 ```bash
 python3 main_forge.py --list
 ```
 
-**Find only GLB assets:**
+### Inspect Technical Truth
+View the full manifest metadata for a specific asset in JSON format.
 ```bash
-python3 main_forge.py --list --format "glb"
+python3 main_forge.py --info "first_asset" --json
 ```
 
-**See full technical details for an asset (JSON):**
-```bash
-python3 main_forge.py --info "gold_orb" --json
-```
-
----
-
-## 3. Sync to Your Project
-When you're ready to use your assets in a 3D engine or another folder, use the sync helper.
-
-**Mirror your library to a project folder:**
+### Handoff to Studio
+Sync your validated assets to an external project directory.
 ```bash
 python3 main_forge.py --sync "../MyStudioProject/Assets/"
 ```
 
----
-
-## 4. Maintenance
-Keep your library clean by removing stale packages not referenced in the registry.
-
-**Dry run (see what would be deleted):**
+### Library Maintenance
+Dry-run cleanup to see what stale packages would be removed.
 ```bash
 python3 main_forge.py --prune --dry-run
 ```
 
-**Execute cleanup:**
-```bash
-python3 main_forge.py --prune
-```
-
 ---
 
-## Recommended Handoff Workflow
-1.  **Generate** using `--format glb` for best quality.
-2.  **Verify** using `--list` to check dimensions and validation status.
-3.  **Handoff** using `--sync` to move assets into your production environment.
+## 3. "Just Want To See It Work?"
+If you want to see the forge build a complex assembly immediately:
+```bash
+python3 main_forge.py --name "demo_chair" --preset "chair_basic" --format "glb" --color "#AA3333"
+```
+This command exercises the assembly logic, PBR contract, and GLB export in one move.

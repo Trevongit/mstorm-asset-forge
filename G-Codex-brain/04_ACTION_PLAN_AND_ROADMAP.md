@@ -1,24 +1,52 @@
 # 04 ACTION PLAN AND ROADMAP
 
-## Phase 1–5: Core Engine (Completed)
-- [x] **Orchestration:** Headless Blender OBJ/GLB pipeline.
-- [x] **Validation:** Artifact integrity and performance gates.
-- [x] **Integration:** Logical registry and project sync tools.
-- [x] **Intelligence:** Multi-item LLM batch architect.
-- [x] **Refinement:** Modular prop assembly and rich material contract.
+## 1) Completed Foundations (Phases 1–5)
+The core engine of the MStorm Asset Forge is complete and hardened.
 
-## Phase 6: Archetypes & Production Scaling (Active)
-- [x] **Asset Presets:** implemented deterministic named asset recipes (Slice 1).
-- [x] **Validation+:** implemented profile-based constraints (Slice 2).
-- [x] **Registry+:** enriched registry with dimensions and material metadata (Slice 3).
-- [x] **Integration Docs:** (Slice 4 - NEW) Added MStorm integration, user quick-start, and future launcher conceptual docs.
-- [ ] **Rich Explorer:** Improve list UX with sorting and material-based search (Slice 5).
-- [ ] **Asset Presets v2:** Expand the library of deterministic recipes.
+* [x] **Blender Orchestration:** Headless OBJ/GLB generation pipeline.
+* [x] **Validated Packaging:** Artifact integrity gates and PBR manifest writing.
+* [x] **Library Core:** Enriched `registry.json` discovery layer.
+* [x] **Explorer UX:** Sorting, JSON output, and info drill-down.
+* [x] **Material Contract:** Alpha, Emission, and PBR property support.
+* [x] **Handoff:** Project sync utility and library pruning.
 
-## Phase 7: Graphical Interfaces & Advanced Loops
-- [ ] **Local GUI:** (NEW) Lightweight React/FastAPI wrapper for visual asset browsing and one-click generation.
-- [ ] **Demo Viewer:** Integrated model viewer for quick local asset verification.
-- [ ] **Visual Critique:** (Experimental) vision-based feedback loop for material/geometry refinement.
+## 2) Phase 6: Archetypes & Production Scaling (Active)
+
+### Slice 5: Rich Explorer Improvements
+*   **Goal:** Make the library genuinely usable at scale.
+*   **Tasks:** 
+    *   Filtering by validation status (OK vs WARN).
+    *   Filtering by material traits (e.g., show only emissive).
+    *   Compact vs Detailed text list modes.
+
+### Slice 6: Asset Presets Expansion (v2)
+*   **Goal:** Expand the library of deterministic recipes.
+*   **Tasks:**
+    *   Implement more complex variants: `bookshelf_large`, `crate_slatted`, `dining_table_round`.
+    *   Refine default scaling rules for presets.
 
 ---
-*For detailed slice-by-slice engineering plans, see [docs/engineering-roadmap.md](../docs/engineering-roadmap.md).*
+
+## 3) Suggested Next 5 Development Moves
+1.  **Enhance Explorer UX:** (Slice 5) Improve searchability for artists.
+2.  **Harden Validation Profiles:** (Slice 6) Stricter rules for "production-ready" GLBs.
+3.  **Expand Presets:** Add 5 more high-quality deterministic furniture archetypes.
+4.  **Refine Sync Tooling:** Support "exclude" patterns for project mirroring.
+5.  **Launcher Prototype (Phase 7):** Begin the local-first GUI wrapper concept.
+
+## 4) Rules For Future Contributors And Agents
+To maintain the integrity of the forge, all contributors must follow these rules:
+
+1.  **Repo Truth Pass:** Always verify the current committed hashes and tree state before writing code.
+2.  **Surgical Slices:** Prefer narrow, verifiable logical slices over broad speculative rewrites.
+3.  **Discovery vs Truth:** Keep `registry.json` lean (discovery) and `manifest.json` detailed (per-asset truth).
+4.  **Documentation Handoff:** Update the Brain and `docs/` whenever a slice changes a contract or adds a capability.
+5.  **No Speculation:** Do not imply that unbuilt GUI or plugin features exist in production-facing docs.
+6.  **Deterministic Priority:** Maintain the stability of the deterministic generation path as the primary feature.
+
+---
+
+## How To Continue Development Without Rediscovery
+*   **Verify State:** Use `python3 main_forge.py --list` to see what the forge is currently indexing.
+*   **Read Contract:** Check `docs/forge-contract.md` for the current data schema.
+*   **Distinguish:** Clearly separate **Committed Reality** from the **Conceptual Roadmap**.

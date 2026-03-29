@@ -1,47 +1,58 @@
 # MStorm Studio — Integration Guide
 
-This document defines the architectural contract for integrating the **MStorm Asset Forge** with external tools, such as MStorm Studio plugins or automated project pipelines.
+This guide defines the architectural contract for integrating the **MStorm Asset Forge** with external tools, automated pipelines, and Studio plugins.
 
-## 1. Discovery-First Architectural Pattern
+## 1. Discovery-First Integration Flow
 
-Integration should follow a two-tier discovery pattern to maintain performance and decoupling.
+Integration must follow a two-tier discovery pattern to maintain performance and decoupling.
 
-### Tier 1: Discovery via `registry.json`
-External tools should first scan `outputs/registry.json`. This file is designed to be a lightweight index of all available assets.
+### Tier 1: Discovery Layer (`registry.json`)
+The `outputs/registry.json` is the lightweight entry point. External tools should scan this file to populate browsers or galleries.
 
-**Safe fields to rely on in the Registry:**
-*   `name`: The logical name of the asset.
-*   `category`: Primary grouping (e.g., "furniture", "decor").
-*   `format`: The exported format (`glb` or `obj`).
-*   `dimensions`: Bounding box (WxDxH) in meters for layout planning.
-*   `validation_profile`: The quality target used during generation.
-*   `material_summary`: High-level material flags (e.g., `emissive`, `metallic`).
-*   `package_path`: The relative path to the asset's specific folder.
+**Registry Responsibilities:**
+*   Provide a flat, logical index of all assets.
+*   Surface high-level metadata for filtering (`dimensions`, `validation_profile`, `material_summary`).
+*   Resolve the current `package_path` for a given asset name.
 
-**Integration Logic:**
-Scan the registry to populate an asset browser or to locate specific items by name/tag. Do not scan the filesystem folders directly.
+### Tier 2: Truth Layer (`manifest.json`)
+Read the `manifest.json` inside the specific `package_path` only when deep asset details are required (e.g., during final import or technical audit).
 
-### Tier 2: Detail via `manifest.json`
-Once a specific asset is selected for import or deep inspection, read the `manifest.json` located inside the asset's `package_path`.
-
-**Fields found only in the Manifest:**
-*   `provenance`: Raw command-line used, LLM metadata, and source type.
-*   `geometry_stats`: Detailed vertex and face counts.
-*   `validation_results`: Specific warnings or errors encountered.
-*   `parametric_options`: Full deterministic inputs used to create the asset.
+**Manifest Responsibilities:**
+*   Store deep provenance (raw commands, LLM metadata).
+*   Provide detailed geometry stats and full validation logs.
+*   Maintain the definitive deterministic input contract for the asset.
 
 ---
 
-## 2. Recommended Production Path
+## 2. Stable Integration Contract
 
-For **MStorm Studio 2026** integration, the following standards are recommended:
+To ensure long-term compatibility, external tools should rely on these stable fields in `registry.json`:
+*   `name`: Logical asset identifier.
+*   `format`: `glb` or `obj`.
+*   `package_path`: Relative path to the asset unit.
+*   `dimensions`: World-space bounding box (WxDxH) in meters.
+*   `validation_success`: Global quality flag.
 
-*   **Preferred Format:** `glb` (glTF Binary). It provides the highest fidelity for PBR materials, transparency, and emission.
-*   **Handoff Method:** Use the `--sync <target_path>` command to mirror specific registry items into the Studio project's `Assets/` directory.
-*   **Decoupling:** External tools should remain agnostic of how the Forge generates geometry. They should only care about the standardized output artifacts defined in the [Package Contract](forge-contract.md).
+---
 
-## 3. Future Bridge Concepts
-Future integration improvements may include:
-*   **Live Watcher:** A Studio-side plugin that watches `registry.json` for updates.
-*   **One-Click Import:** Automatic conversion of Forge registry entries into Studio-native Prefabs.
-*   **Metadata Sync:** Propagating Forge tags and dimensions directly into Studio's internal database.
+## 3. Preferred Production Handoff
+
+*   **Format:** `glb` (glTF Binary) is the preferred production path. it provides the highest fidelity for PBR materials, transparency, and emission.
+*   **Method:** Use the `--sync <target_path>` utility. This ensures a clean mirror of the library into the Studio project's asset directory, respecting overwrites and filtering rules.
+
+---
+
+## 4. What MStorm Should Not Assume
+
+*   **Direct Folder Scraping:** Do not assume the internal structure of `outputs/` is stable. Always resolve paths via `registry.json`.
+*   **Blender Implementation:** The Forge abstracts Blender orchestration. Tools should interact only with the generated artifacts (GLB/OBJ/JSON).
+*   **Persistent GUIDs:** While names are stable, `asset_id` (UUID) values are regenerated if an asset is re-forged.
+
+---
+
+## 5. Future Bridge / Plugin Direction
+
+Future Studio-side integration should focus on:
+*   **Live Watcher:** A bridge that monitors `registry.json` for changes to trigger automatic re-imports.
+*   **Shelf UI:** presenting the Forge registry as a visual library of ready-to-use Studio Prefabs.
+*   **Metadata Propagation:** Syncing Forge tags and dimensions directly into the Studio scene database.
