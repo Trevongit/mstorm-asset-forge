@@ -145,94 +145,79 @@ def execute_headless_blender(code: str, timeout: int = 300, blend_path: Optional
         }
     
     # Create a temporary Python script file
-    temp_script = None
+    temp_script_path = None
     try:
         # Create temporary script file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
             f.write(code)
-            temp_script = f.name
+            temp_script_path = f.name
         
         # Prepare Blender command
         cmd = [blender_path, "--background"]
         if blend_path:
             cmd.extend(["-b", blend_path])
-        cmd.extend(["--python", temp_script, "--"])
+        cmd.extend(["--python", temp_script_path, "--"])
         
         print(f"[Headless] Executing Blender code in headless mode...")
         
         # Execute the command with sanitized environment
         start_time = time.time()
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                cwd=os.getcwd(),
-                env=sanitize_blender_env()
-            )
-            execution_time = time.time() - start_time
-            
-            # Combine stdout and stderr for more robust parsing
-            output = (result.stdout or "") + "\n" + (result.stderr or "")
-            output = output.strip()
-            
-            # Parse the result
-            if result.returncode == 0:
-                return {
-                    "status": "success",
-                    "message": f"Headless execution completed in {execution_time:.2f}s",
-                    "result": {
-                        "executed": True,
-                        "result": output,
-                        "execution_time": execution_time,
-                        "method": "headless"
-                    }
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=os.getcwd(),
+            env=sanitize_blender_env()
+        )
+        execution_time = time.time() - start_time
+        
+        # Combine stdout and stderr
+        output = (result.stdout or "") + "\n" + (result.stderr or "")
+        output = output.strip()
+        
+        # Parse the result
+        if result.returncode == 0:
+            return {
+                "status": "success",
+                "message": f"Headless execution completed in {execution_time:.2f}s",
+                "result": {
+                    "executed": True,
+                    "result": output,
+                    "execution_time": execution_time,
+                    "method": "headless"
                 }
-            else:
-                # Error
-                error_output = output if output else "Unknown error"
-                return {
-                    "status": "error",
-                    "message": f"Headless execution failed (exit code {result.returncode}): {error_output}",
-                    "result": {
-                        "executed": False,
-                        "result": error_output,
-                        "execution_time": execution_time,
-                        "method": "headless"
-                    }
+            }
+        else:
+            error_output = output if output else "Unknown error"
+            return {
+                "status": "error",
+                "message": f"Headless execution failed (exit code {result.returncode}): {error_output}",
+                "result": {
+                    "executed": False,
+                    "result": error_output,
+                    "execution_time": execution_time,
+                    "method": "headless"
                 }
+            }
                 
-        except subprocess.TimeoutExpired:
-            execution_time = time.time() - start_time
-            return {
-                "status": "error",
-                "message": f"Headless execution timed out after {timeout}s",
-                "result": {
-                    "executed": False,
-                    "result": f"Timeout after {timeout}s",
-                    "execution_time": execution_time,
-                    "method": "headless"
-                }
-            }
-        except Exception as e:
-            execution_time = time.time() - start_time
-            return {
-                "status": "error",
-                "message": f"Headless execution failed: {str(e)}",
-                "result": {
-                    "executed": False,
-                    "result": str(e),
-                    "execution_time": execution_time,
-                    "method": "headless"
-                }
-            }
-    
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "error",
+            "message": f"Headless execution timed out after {timeout}s",
+            "result": {"executed": False, "method": "headless"}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Headless execution failed: {str(e)}",
+            "result": {"executed": False, "method": "headless"}
+        }
     finally:
-        # Clean up temporary script file
-        if temp_script and os.path.exists(temp_script):
+        # ABSOLUTE CLEANUP
+        if temp_script_path and os.path.exists(temp_script_path):
             try:
-                os.unlink(temp_script)
+                os.unlink(temp_script_path)
             except Exception as e:
                 print(f"[Headless] Warning: Could not clean up temporary script: {e}")
 
