@@ -16,7 +16,8 @@ def prepare_package_dir(output_root, asset_name):
 def write_manifest(package_path, asset_name, primitive, scale, 
                    tags=None, preview_file=None, author="MStorm Forge", 
                    creation_command=None, geometry_stats=None, 
-                   parametric_options=None, version="1.0.0"):
+                   parametric_options=None, source_type="primitive",
+                   experimental_mode=False, llm_metadata=None, version="1.0.0"):
     """
     Writes a manifest.json file to the package directory.
     """
@@ -24,12 +25,23 @@ def write_manifest(package_path, asset_name, primitive, scale,
     asset_id = str(uuid.uuid4())
     
     final_tags = ["generated", "mvp", "prop", primitive.lower()]
+    if experimental_mode:
+        final_tags.append("experimental")
+
     if tags:
         for t in tags:
             t_clean = t.strip().lower()
             if t_clean and t_clean not in final_tags:
                 final_tags.append(t_clean)
     
+    provenance = {
+        "source_type": source_type,
+        "creation_command": creation_command or "Manual",
+        "experimental_mode": experimental_mode
+    }
+    if llm_metadata:
+        provenance.update(llm_metadata)
+
     manifest = {
         "asset_id": asset_id,
         "name": asset_name,
@@ -39,10 +51,7 @@ def write_manifest(package_path, asset_name, primitive, scale,
         "author": author,
         "generator": "MStorm Asset Forge v0.1",
         "timestamp": manifest_timestamp,
-        "provenance": {
-            "source_type": "primitive",
-            "creation_command": creation_command or "Manual"
-        },
+        "provenance": provenance,
         "metadata": {
             "primitive": primitive,
             "scale": scale,

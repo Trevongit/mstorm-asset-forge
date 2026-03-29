@@ -7,12 +7,12 @@ import datetime
 from forge.generator import generate_bpy_script
 from forge.packager import prepare_package_dir, write_manifest, write_run_report
 from forge.agent import interpret_prompt
+from forge.safety import validate_snippet
 from blender.headless import execute_headless_blender
 
-def forge_item(asset_params, options, global_command, dry_run=False):
+def forge_item(asset_params, options, global_command, dry_run=False, llm_metadata=None):
     """
     Processes a single asset request.
-    Returns (bool success, str message, dict result_info)
     """
     name = asset_params.get("name", "prop")
     primitive = asset_params.get("primitive", "cube")
@@ -22,6 +22,10 @@ def forge_item(asset_params, options, global_command, dry_run=False):
     bevel = float(options.get("bevel", 0.0))
     subdivisions = int(options.get("subdivisions", 0))
     auto_smooth = bool(options.get("auto_smooth", False))
+    fmt = options.get("format", "obj")
+    
+    python_code = options.get("python_code")
+    experimental_mode = options.get("experimental_mode", False)
     
     author = options.get("author", "MStorm Forge")
     output_dir = options.get("output_dir", "outputs")
@@ -45,12 +49,21 @@ def forge_item(asset_params, options, global_command, dry_run=False):
         result_info["error"] = "Subdivisions must be between 0 and 5"
         return False, result_info["error"], result_info
 
+    # Sandbox Snippet Validation
+    if python_code:
+        is_valid, err = validate_snippet(python_code)
+        if not is_valid:
+            result_info["error"] = f"Sandbox Validation Failed: {err}"
+            return False, result_info["error"], result_info
+
     print(f"\n>>> Forge Item: '{name}' ({primitive}) <<<")
-    if bevel > 0 or subdivisions > 0 or auto_smooth:
-        print(f"Forge: Parametric Options - Bevel: {bevel}, Subdiv: {subdivisions}, AutoSmooth: {auto_smooth}")
+    if experimental_mode:
+        print("Forge: EXPERIMENTAL sandbox mode enabled.")
     
     if dry_run:
         print(f"DRY RUN: Validation passed for '{name}'.")
+        if python_code:
+            print(f"DRY RUN: Python Snippet:\n---\n{python_code}\n---")
         result_info["status"] = "dry_run"
         return True, "Dry run successful", result_info
 
@@ -63,7 +76,7 @@ def forge_item(asset_params, options, global_command, dry_run=False):
         result_info["error"] = str(e)
         return False, f"Package directory creation failed: {e}", result_info
         
-    asset_file = "asset.obj"
+    asset_file = f"asset.{fmt}"
     asset_path = os.path.join(package_path, asset_file)
     preview_file = "preview.png"
     preview_path = os.path.join(package_path, preview_file) if not no_preview else None
@@ -73,7 +86,9 @@ def forge_item(asset_params, options, global_command, dry_run=False):
         name, primitive, scale_tuple, shading=shading,
         bevel=bevel, subdivisions=subdivisions, auto_smooth=auto_smooth,
         output_path=asset_path, 
-        preview_path=preview_path
+        preview_path=preview_path,
+        export_format=fmt,
+        python_code=python_code
     )
     
     print(f"Forge: Executing Blender headless ({primitive})...")
@@ -83,7 +98,6 @@ def forge_item(asset_params, options, global_command, dry_run=False):
     if result.get("status") == "success":
         print(f"Forge: Blender execution SUCCESS.")
         
-        # Stats Extraction
         geometry_stats = None
         blender_stdout = result.get("result", {}).get("result", "")
         match = re.search(r"FORGE_STATS: ({.*})", blender_stdout)
@@ -93,7 +107,6 @@ def forge_item(asset_params, options, global_command, dry_run=False):
                 print(f"Forge: Extracted stats - Vertices: {geometry_stats.get('vertex_count')}, Faces: {geometry_stats.get('face_count')}")
             except Exception: pass
 
-        # Preview Check
         final_preview = None
         if preview_path and os.path.exists(preview_path):
             final_preview = preview_file
@@ -107,6 +120,8 @@ def forge_item(asset_params, options, global_command, dry_run=False):
             "shading": shading
         }
 
+        source_type = "agent_bpy_sandbox" if python_code else "primitive"
+
         write_manifest(
             package_path, name, primitive, scale_tuple, 
             tags=tags_list,
@@ -114,7 +129,10 @@ def forge_item(asset_params, options, global_command, dry_run=False):
             author=author,
             creation_command=global_command,
             geometry_stats=geometry_stats,
-            parametric_options=parametric_options
+            parametric_options=parametric_options,
+            source_type=source_type,
+            experimental_mode=experimental_mode,
+            llm_metadata=llm_metadata
         )
         print(f"Forge: Successfully packaged '{name}'")
         result_info["status"] = "success"
@@ -129,12 +147,12 @@ def main():
     parser = argparse.ArgumentParser(description="MStorm Asset Forge - OBJ Baseline Pipeline")
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
     parser.add_argument("-p", "--prompt", type=str, help="Natural language request")
+    parser.add_argument("--prompt-to-bpy", action="store_true", help="Experimental: Allow LLM to generate geometry code")
     parser.add_argument("--llm", action="store_true", help="Use LLM for prompt interpretation")
     parser.add_argument("--provider", type=str, default="openai", choices=["openai", "gemini", "mock"], help="LLM provider")
     parser.add_argument("--model", type=str, help="LLM model name")
     parser.add_argument("--dry-run", action="store_true", help="Interpret and validate without running Blender")
     
-    # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
     parser.add_argument("--scale", type=str, help="Comma-separated scale (x,y,z)")
@@ -142,6 +160,7 @@ def main():
     parser.add_argument("--bevel", type=float, help="Bevel width")
     parser.add_argument("--subdivisions", type=int, help="Subdivision levels (0-5)")
     parser.add_argument("--auto-smooth", action="store_true", default=None, help="Enable auto-smooth")
+    parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Export format")
     
     parser.add_argument("--author", type=str, help="Asset author name")
     parser.add_argument("--output-dir", type=str, help="Output root directory")
@@ -152,16 +171,32 @@ def main():
     full_command = " ".join(sys.argv)
     
     requests = []
+    global_llm_metadata = None
 
     # 1. Resolve Requests
     if args.prompt:
-        print(f"Agent: Interpreting prompt: '{args.prompt}' (Mode: {'LLM' if args.llm else 'Rule-based'})...")
-        req, msg = interpret_prompt(args.prompt, use_llm=args.llm, provider=args.provider, model=args.model)
+        if args.prompt_to_bpy and not args.llm:
+            print("Error: --prompt-to-bpy requires --llm.")
+            sys.exit(1)
+            
+        print(f"Agent: Interpreting prompt: '{args.prompt}' (Sandbox: {args.prompt_to_bpy})...")
+        req, msg = interpret_prompt(args.prompt, use_llm=args.llm, 
+                                    provider=args.provider, model=args.model,
+                                    sandbox_mode=args.prompt_to_bpy)
         if not req:
             print(f"Agent Error: {msg}")
             sys.exit(1)
+        
         print(f"Agent: Success.")
         print(json.dumps(req, indent=2))
+        
+        if args.prompt_to_bpy:
+            if "options" not in req: req["options"] = {}
+            req["options"]["experimental_mode"] = True
+            
+        if args.llm:
+            global_llm_metadata = {"provider": args.provider, "model": args.model or "default"}
+            
         requests = [req]
     elif args.file:
         if not os.path.exists(args.file):
@@ -186,6 +221,7 @@ def main():
                 "bevel": args.bevel or 0.0,
                 "subdivisions": args.subdivisions or 0,
                 "auto_smooth": args.auto_smooth if args.auto_smooth is not None else False,
+                "format": args.format or "obj",
                 "author": args.author or "MStorm Forge",
                 "output_dir": args.output_dir or "outputs",
                 "tags": [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else [],
@@ -211,7 +247,8 @@ def main():
         if args.file or args.prompt:
             missing = []
             if "name" not in asset_data: missing.append("asset.name")
-            if "primitive" not in asset_data: missing.append("asset.primitive")
+            if not options_data.get("experimental_mode") and "primitive" not in asset_data: 
+                missing.append("asset.primitive")
             if missing:
                 print(f"\n[Item {i}] Error: Missing required fields: {', '.join(missing)}")
                 asset_results.append({
@@ -220,7 +257,6 @@ def main():
                 })
                 continue
 
-        # Global CLI Overrides
         if args.output_dir is not None: options_data["output_dir"] = args.output_dir
         if args.no_preview is not None: options_data["no_preview"] = args.no_preview
         if args.author is not None: options_data["author"] = args.author
@@ -235,10 +271,11 @@ def main():
             if args.bevel is not None: options_data["bevel"] = args.bevel
             if args.subdivisions is not None: options_data["subdivisions"] = args.subdivisions
             if args.auto_smooth is not None: options_data["auto_smooth"] = args.auto_smooth
+            if args.format is not None: options_data["format"] = args.format
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 
-        success, msg, result_info = forge_item(asset_data, options_data, full_command, dry_run=args.dry_run)
+        success, msg, result_info = forge_item(asset_data, options_data, full_command, dry_run=args.dry_run, llm_metadata=global_llm_metadata)
         result_info["index"] = i
         asset_results.append(result_info)
 

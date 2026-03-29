@@ -80,17 +80,19 @@ def interpret_prompt_rule_based(prompt):
     
     return request, f"Rule-based success: {primitive} ({shading})"
 
-def interpret_prompt(prompt, use_llm=False, provider="openai", model=None):
+def interpret_prompt(prompt, use_llm=False, provider="openai", model=None, sandbox_mode=False):
     """
     Main entry point for prompt interpretation.
     Routes to either rule-based or LLM-based logic.
     """
     if not use_llm:
+        if sandbox_mode:
+            return None, "Experimental mode (--prompt-to-bpy) requires --llm."
         return interpret_prompt_rule_based(prompt)
     
     try:
         connector = get_connector(provider, model)
-        request = connector.generate_request(prompt)
+        request = connector.generate_request(prompt, sandbox_mode=sandbox_mode)
         
         # Basic validation of LLM output
         if "asset" not in request:

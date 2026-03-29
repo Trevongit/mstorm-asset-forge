@@ -4,10 +4,12 @@ import os
 def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), 
                         shading="flat", bevel=0.0, subdivisions=0, 
                         auto_smooth=False, output_path="asset.obj", 
-                        preview_path=None):
+                        preview_path=None, export_format="obj",
+                        python_code=None):
     """
-    Generates a minimal Blender Python script to create a primitive, 
-    apply modifiers, render an adaptive preview, and export it as OBJ.
+    Generates a minimal Blender Python script to create geometry, 
+    apply modifiers, render an adaptive preview, and export it as OBJ or GLB.
+    If python_code is provided, it is inserted as the geometry generation step.
     """
     # Map primitives to Blender ops
     primitive_map = {
@@ -23,7 +25,14 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
     
     shading_cmd = "bpy.ops.object.shade_smooth()" if shading.lower() == "smooth" else "bpy.ops.object.shade_flat()"
 
-    # We build the script using string formatting
+    # Geometry Generation Block
+    if python_code:
+        # Use provided snippet
+        geo_gen = textwrap.indent(python_code, "        ")
+    else:
+        # Default primitive
+        geo_gen = f"        {op}(location=(0, 0, 0))\n        obj = bpy.context.active_object"
+
     script_template = textwrap.dedent("""
         import bpy
         import os
@@ -35,8 +44,8 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.delete()
 
-        # Create the primitive
-        {op}(location=(0, 0, 0))
+        # --- Geometry Generation ---
+{geo_gen}
         obj = bpy.context.active_object
         obj.name = "{asset_name}"
 
@@ -76,36 +85,25 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
         if "{preview_path}":
             print("Blender: Setting up adaptive preview render...")
             
-            # 1. Calculate Bounding Box and Extent
-            # We use the evaluated object to account for modifiers
             bbox = [obj_eval.matrix_world @ Vector(corner) for corner in obj_eval.bound_box]
             center = sum(bbox, Vector()) / 8
-            
-            # Find max dimension for scaling
             dims = obj_eval.dimensions
             max_dim = max(dims.x, dims.y, dims.z, 0.1)
             
-            # 2. Camera Setup
-            # Baseline distance: 3.5x the max dimension (fits object well in 512x512)
             cam_dist = max_dim * 3.0
-            # Offset the camera at an isometric-ish angle
             cam_loc = center + Vector((cam_dist, -cam_dist, cam_dist * 0.7))
             
             bpy.ops.object.camera_add(location=cam_loc)
             cam = bpy.context.active_object
             bpy.context.scene.camera = cam
             
-            # Point camera at center
             direction = center - cam.location
             rot_quat = direction.to_track_quat('-Z', 'Y')
             cam.rotation_euler = rot_quat.to_euler()
             
-            # 3. Light Setup
-            # Position light relative to camera and object size
             bpy.ops.object.light_add(type='SUN', location=cam_loc + Vector((0, 0, cam_dist)))
             bpy.context.active_object.data.energy = 5.0
             
-            # 4. Render Settings
             bpy.context.scene.render.image_settings.file_format = 'PNG'
             bpy.context.scene.render.filepath = "{preview_path}"
             bpy.context.scene.render.resolution_x = 512
@@ -123,16 +121,25 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
 
         # --- Export ---
         print("Blender: Exporting to {output_path}")
-        if hasattr(bpy.ops.wm, 'obj_export'):
-            bpy.ops.wm.obj_export(filepath="{output_path}", export_selected_objects=True, apply_modifiers=True)
+        if "{export_format}" == "glb":
+            bpy.ops.export_scene.gltf(
+                filepath="{output_path}",
+                export_format='GLB',
+                use_selection=True,
+                export_apply=True,
+                export_yup=True
+            )
         else:
-            bpy.ops.export_scene.obj(filepath="{output_path}", use_selection=True, use_mesh_modifiers=True)
+            if hasattr(bpy.ops.wm, 'obj_export'):
+                bpy.ops.wm.obj_export(filepath="{output_path}", export_selected_objects=True, apply_modifiers=True)
+            else:
+                bpy.ops.export_scene.obj(filepath="{output_path}", use_selection=True, use_mesh_modifiers=True)
 
         print("Blender: Successfully exported " + obj.name)
     """).strip()
 
     return script_template.format(
-        op=op,
+        geo_gen=geo_gen,
         asset_name=asset_name,
         scale_x=scale[0],
         scale_y=scale[1],
@@ -142,5 +149,6 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
         subdivisions=subdivisions,
         auto_smooth="True" if auto_smooth else "False",
         preview_path=abs_preview_path,
-        output_path=abs_output_path
+        output_path=abs_output_path,
+        export_format=export_format.lower()
     )
