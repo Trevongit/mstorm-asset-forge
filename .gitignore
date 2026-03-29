@@ -16,6 +16,7 @@ outputs/
 proof_package_*/
 
 # Temporary and Scratch Areas
+.venv/
 temp_bpy_script.py
 experiments/
 *.blend1

@@ -15,3 +15,9 @@
 | 2026-03-29 | Slice 11: Geometry Stats Extraction | `cda2948` | GCagent |
 | 2026-03-29 | Slice 12: Package Index / Run Report | `f66622a` | GCagent |
 | 2026-03-29 | Slice 13: Real LLM Connector Skeleton | `d7d3a79` | GCagent |
+| 2026-03-29 | Phase 2 Slice 1: Gemini Connector | `09fed8b` | GCagent |
+| 2026-03-29 | Phase 2 Env: .env.example & README setup | `9f4eefa` | GCagent |
+| 2026-03-29 | Phase 2 Slice 2: Parametric Contract | `3efcb9c` | GCagent |
+| 2026-03-29 | Phase 2 Slice 3: Adaptive Framing | `7b6d182` | GCagent |
+| 2026-03-29 | Phase 2 Slice 4: glTF/GLB Restoration | `baba674` | GCagent |
+| 2026-03-29 | Phase 2 Slice 5: Sandbox & Model Defaults | `017ded9` | GCagent |
