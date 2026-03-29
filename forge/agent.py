@@ -80,32 +80,44 @@ def interpret_prompt_rule_based(prompt):
     
     return request, f"Rule-based success: {primitive} ({shading})"
 
-def interpret_prompt(prompt, use_llm=False, provider="openai", model=None, sandbox_mode=False):
+def interpret_prompt(prompt, use_llm=False, provider="openai", model=None, sandbox_mode=False, batch_mode=False):
     """
     Main entry point for prompt interpretation.
     Routes to either rule-based or LLM-based logic.
     """
     if not use_llm:
-        if sandbox_mode:
-            return None, "Experimental mode (--prompt-to-bpy) requires --llm."
+        if sandbox_mode or batch_mode:
+            mode_name = "Sandbox" if sandbox_mode else "Batch"
+            return None, f"Experimental mode ({mode_name}) requires --llm."
         return interpret_prompt_rule_based(prompt)
     
     try:
         connector = get_connector(provider, model)
-        request = connector.generate_request(prompt, sandbox_mode=sandbox_mode)
+        result = connector.generate_request(prompt, sandbox_mode=sandbox_mode, batch_mode=batch_mode)
         
-        # Basic validation of LLM output
-        if "asset" not in request:
-            return None, "LLM returned invalid structure (missing 'asset' key)."
+        # Validation and normalization for both Single and Batch results
+        items = result if isinstance(result, list) else [result]
         
-        # Ensure tags indicate LLM provenance
-        if "options" not in request:
-            request["options"] = {}
-        if "tags" not in request["options"]:
-            request["options"]["tags"] = []
-        request["options"]["tags"].append("llm_interpreted")
-        request["options"]["tags"].append(f"provider_{provider}")
+        if not items:
+            return None, "LLM returned an empty list of requests."
+
+        for item in items:
+            if "asset" not in item:
+                return None, "LLM returned invalid structure (missing 'asset' key)."
+            
+            # Ensure tags indicate LLM provenance
+            if "options" not in item:
+                item["options"] = {}
+            if "tags" not in item["options"]:
+                item["options"]["tags"] = []
+            
+            # Deduplicate provenance tags
+            prov_tags = ["llm_interpreted", f"provider_{provider}"]
+            for t in prov_tags:
+                if t not in item["options"]["tags"]:
+                    item["options"]["tags"].append(t)
         
-        return request, f"LLM ({provider}) success."
+        # Return list if batch mode requested, else single dict
+        return (items if batch_mode else items[0]), f"LLM ({provider}) success."
     except Exception as e:
         return None, f"LLM Error: {e}"

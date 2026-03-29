@@ -70,6 +70,8 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     
     if dry_run:
         print(f"DRY RUN: Validation passed for '{name}'.")
+        if python_code:
+            print(f"DRY RUN: Python Snippet:\n---\n{python_code}\n---")
         result_info["status"] = "dry_run"
         return True, "Dry run successful", result_info
 
@@ -219,6 +221,7 @@ def main():
     parser = argparse.ArgumentParser(description="MStorm Asset Forge - Production Pipeline")
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
     parser.add_argument("-p", "--prompt", type=str, help="Natural language request")
+    parser.add_argument("--llm-batch", action="store_true", help="Use LLM to generate a batch of requests")
     parser.add_argument("--prompt-to-bpy", action="store_true", help="Experimental: Allow LLM to generate geometry code")
     parser.add_argument("--llm", action="store_true", help="Use LLM for prompt interpretation")
     parser.add_argument("--provider", type=str, default="openai", choices=["openai", "gemini", "mock"], help="LLM provider")
@@ -292,21 +295,36 @@ def main():
 
     # 1. Resolve Requests
     if args.prompt:
-        if args.prompt_to_bpy and not args.llm:
-            print("Error: --prompt-to-bpy requires --llm.")
+        if (args.prompt_to_bpy or args.llm_batch) and not args.llm:
+            mode = "prompt-to-bpy" if args.prompt_to_bpy else "llm-batch"
+            print(f"Error: --{mode} requires --llm.")
             sys.exit(1)
-        req, msg = interpret_prompt(args.prompt, use_llm=args.llm, 
+            
+        print(f"Agent: Interpreting prompt: '{args.prompt}' (Sandbox: {args.prompt_to_bpy}, Batch: {args.llm_batch})...")
+        result, msg = interpret_prompt(args.prompt, use_llm=args.llm, 
                                     provider=args.provider, model=args.model,
-                                    sandbox_mode=args.prompt_to_bpy)
-        if not req:
+                                    sandbox_mode=args.prompt_to_bpy,
+                                    batch_mode=args.llm_batch)
+        if not result:
             print(f"Agent Error: {msg}")
             sys.exit(1)
-        if args.prompt_to_bpy:
-            if "options" not in req: req["options"] = {}
-            req["options"]["experimental_mode"] = True
+        
+        print(f"Agent: Success.")
+        print(json.dumps(result, indent=2))
+        
+        if isinstance(result, list):
+            requests = result
+        else:
+            requests = [result]
+
+        for req in requests:
+            if args.prompt_to_bpy:
+                if "options" not in req: req["options"] = {}
+                req["options"]["experimental_mode"] = True
+            
         if args.llm:
             global_llm_metadata = {"provider": args.provider, "model": args.model or "default"}
-        requests = [req]
+            
     elif args.file:
         if not os.path.exists(args.file):
             print(f"Error: Request file not found: {args.file}")
@@ -396,7 +414,7 @@ def main():
     fail_count = total - success_count
 
     run_metadata = {
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat() + "Z",
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "command": full_command,
         "output_dir": output_dir_final,
         "total_count": total,
