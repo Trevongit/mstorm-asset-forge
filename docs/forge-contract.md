@@ -46,7 +46,7 @@ The Forge produces a timestamped directory containing the following artifacts:
 ### Package Folder Tree
 ```text
 outputs/
-├── registry.json       # Global library index (Upsert-based)
+├── registry.json       # Global library index (Latest-only upsert)
 └── <YYYYMMDD_HHMMSS>_<asset_name>/
     ├── asset.obj       # The 3D model (if format=obj)
     ├── asset.mtl       # Associated material library (if format=obj)
@@ -56,7 +56,7 @@ outputs/
 ```
 
 ### Global Registry Schema (`registry.json`)
-The `registry.json` file at the root of the output directory serves as the primary library index for consumers.
+The `registry.json` file at the root of the output directory serves as the primary library index for consumers. It represents the **LATEST** version of each unique logical asset (keyed by `name`, `category`, and `format`).
 ```json
 {
   "last_updated": "ISO-8601-UTC",
@@ -116,5 +116,7 @@ The `registry.json` file at the root of the output directory serves as the prima
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
-*   **Global Registry:** Every successful generation run automatically updates `outputs/registry.json`. If an `asset_id` already exists, its entry is updated (upsert).
+*   **Global Registry:** Every successful generation run automatically updates `outputs/registry.json`. The registry uses a logical identity key (`name|category|format`) to ensure it only tracks the most recent package for each asset identity. Older package folders are preserved on disk but removed from the registry index when a newer version is generated.
 *   **Asset Entry Point:** Consumers should always use the `entry_point` field in the manifest or registry to locate the primary model file.
+*   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.
+*   **Format Notes:** GLB export requires `numpy` to be available in the Blender Python environment.

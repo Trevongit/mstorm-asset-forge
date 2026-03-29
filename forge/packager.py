@@ -22,7 +22,6 @@ def write_manifest(package_path, asset_name, primitive, scale,
     """
     Writes a manifest.json file to the package directory.
     """
-    # Fix: Consistent ISO with Z suffix, avoid redundant +00:00
     manifest_timestamp = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     asset_id = str(uuid.uuid4())
     
@@ -48,7 +47,7 @@ def write_manifest(package_path, asset_name, primitive, scale,
         "asset_id": asset_id,
         "name": asset_name,
         "type": "static_prop",
-        "format": format, # Fixed: using dynamic format
+        "format": format,
         "entry_point": entry_point,
         "version": version,
         "author": author,
@@ -100,7 +99,8 @@ def write_run_report(output_dir, run_metadata, asset_results):
 
 def update_global_registry(output_root, asset_info):
     """
-    Upserts an asset entry into the global registry.json using package_path as key.
+    Upserts an asset entry into the global registry.json using a logical key.
+    The registry represents the LATEST version of each unique asset identity.
     """
     registry_path = os.path.join(output_root, "registry.json")
     
@@ -112,15 +112,21 @@ def update_global_registry(output_root, asset_info):
         except Exception as e:
             print(f"Forge: WARNING - Could not read registry, starting fresh: {e}")
 
-    # STABLE KEY: package_path (the unique folder name)
-    # This prevents duplicate entries when re-indexing the same package
+    # LOGICAL KEY: name + category + format
+    # This ensures the registry only keeps the latest version of a specific logical asset.
+    def get_logical_key(a):
+        # Normalize category to handle None/missing consistently
+        cat = a.get('category')
+        if cat is None: cat = ""
+        return f"{a.get('name')}|{cat}|{a.get('format')}"
+
+    new_key = get_logical_key(asset_info)
     assets = registry.get("assets", [])
-    pkg_path = asset_info.get("package_path")
     
     updated_assets = []
     found = False
     for a in assets:
-        if a.get("package_path") == pkg_path:
+        if get_logical_key(a) == new_key:
             updated_assets.append(asset_info)
             found = True
         else:
