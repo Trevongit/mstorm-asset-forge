@@ -101,7 +101,9 @@ def main():
         if not req:
             print(f"Agent Error: {msg}")
             sys.exit(1)
-        print(f"Agent: {msg}")
+        
+        print(f"Agent: Success.")
+        print(json.dumps(req, indent=2))
         requests = [req]
         
     elif args.file:

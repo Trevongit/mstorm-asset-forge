@@ -10,6 +10,12 @@ def interpret_prompt(prompt):
 
     p = prompt.lower()
     
+    # 0. Unsupported Concept Check (Hard Fail)
+    unsupported = ["donut", "torus", "cone", "monkey", "suzanne", "light", "camera"]
+    for word in unsupported:
+        if word in p:
+            return None, f"Unsupported concept detected: '{word}'. The MVP only supports basic primitives."
+
     # 1. Identify Primitive (Required)
     primitive = None
     if any(word in p for word in ["cube", "box", "square"]):
@@ -18,26 +24,37 @@ def interpret_prompt(prompt):
         primitive = "sphere"
     elif any(word in p for word in ["cylinder", "pillar", "tube"]):
         primitive = "cylinder"
-    elif any(word in p for word in ["plane", "floor", "ground", "flat"]):
+    elif any(word in p for word in ["plane", "floor", "ground", "flat", "sheet", "wall"]):
         primitive = "plane"
         
     if not primitive:
         return None, f"Could not determine asset primitive from prompt: '{prompt}'"
 
-    # 2. Identify Name (Guessed from keywords or generic)
-    name = "nl_asset"
-    # Simple heuristic: look for nouns that aren't the primitive
-    if "table" in p: name = "table"
-    elif "wall" in p: name = "wall"
-    elif "pillar" in p: name = "pillar"
-    elif "base" in p: name = "base"
+    # 2. Improved Name Inference
+    # Strip known keywords and articles to find the "subject"
+    noise = [
+        "a", "an", "the", "make", "create", "generate", "build", "simple",
+        "cube", "box", "square", "sphere", "ball", "round", "cylinder", "pillar", "tube", "plane", "floor", "ground", "flat", "sheet", "wall",
+        "smooth", "polished", "soft", "matte", "rough",
+        "tall", "high", "wide", "broad", "large", "huge", "small", "tiny", "thin", "pancake", "skinny", "needle"
+    ]
+    
+    # Replace noise with spaces, then collapse
+    name_candidate = p
+    for word in noise:
+        name_candidate = re.sub(rf'\b{word}\b', '', name_candidate)
+    
+    name_clean = "_".join(re.findall(r'\w+', name_candidate))
+    name = name_clean if name_clean else f"{primitive}_prop"
 
     # 3. Identify Shading
     shading = "flat"
     if any(word in p for word in ["smooth", "polished", "soft"]):
         shading = "smooth"
+    elif any(word in p for word in ["matte", "rough", "flat"]):
+        shading = "flat"
 
-    # 4. Identify Scale (Simple multiplier heuristics)
+    # 4. Expanded Scale Mappings
     scale = [1.0, 1.0, 1.0]
     if "tall" in p or "high" in p:
         scale = [1.0, 1.0, 3.0]
@@ -47,6 +64,10 @@ def interpret_prompt(prompt):
         scale = [2.0, 2.0, 2.0]
     elif "small" in p or "tiny" in p:
         scale = [0.5, 0.5, 0.5]
+    elif "thin" in p or "pancake" in p or "flat" in p:
+        scale = [1.0, 1.0, 0.1]
+    elif "skinny" in p or "needle" in p:
+        scale = [0.1, 0.1, 2.0]
 
     # Construct the request object
     request = {
@@ -57,7 +78,7 @@ def interpret_prompt(prompt):
         },
         "options": {
             "shading": shading,
-            "tags": ["nl_interpreted", "agent_skeleton"]
+            "tags": ["nl_interpreted", "agent_v0.2"]
         }
     }
     
