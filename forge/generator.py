@@ -7,7 +7,7 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
                         preview_path=None):
     """
     Generates a minimal Blender Python script to create a primitive, 
-    apply modifiers, render a preview, and export it as OBJ.
+    apply modifiers, render an adaptive preview, and export it as OBJ.
     """
     # Map primitives to Blender ops
     primitive_map = {
@@ -28,6 +28,8 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
         import bpy
         import os
         import json
+        import math
+        from mathutils import Vector
 
         # Clear existing objects
         bpy.ops.object.select_all(action='SELECT')
@@ -43,15 +45,11 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
         bpy.ops.object.transform_apply(scale=True)
 
         # --- Apply Modifiers ---
-        
-        # 1. Bevel
         if {bevel} > 0:
             bev = obj.modifiers.new(name="ForgeBevel", type='BEVEL')
             bev.width = {bevel}
-            # Optional: ensure segments are reasonable
             bev.segments = 3
             
-        # 2. Subdivisions
         if {subdivisions} > 0:
             sub = obj.modifiers.new(name="ForgeSubsurf", type='SUBSURF')
             sub.levels = {subdivisions}
@@ -60,14 +58,11 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
         # Apply shading
         {shading_cmd}
         
-        # 3. Auto Smooth (Specific to Blender 4.0.2 handling)
         if {auto_smooth}:
-            # In 4.0, shade_smooth with auto_smooth is often handled via mesh property
             obj.data.use_auto_smooth = True
             obj.data.auto_smooth_angle = 0.523599 # 30 degrees
 
-        # --- Geometry Stats Extraction ---
-        # Note: We use evaluated mesh to get counts after modifiers
+        # --- Geometry Stats Extraction (Evaluated) ---
         depsgraph = bpy.context.evaluated_depsgraph_get()
         obj_eval = obj.evaluated_get(depsgraph)
         mesh_eval = obj_eval.to_mesh()
@@ -76,17 +71,41 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
         f_count = len(mesh_eval.polygons)
         stats = {{"vertex_count": v_count, "face_count": f_count}}
         print("FORGE_STATS: " + json.dumps(stats))
-        
-        obj_eval.to_mesh_clear()
 
-        # --- Preview Rendering ---
+        # --- Preview Rendering (Adaptive) ---
         if "{preview_path}":
-            print("Blender: Setting up preview render...")
-            bpy.ops.object.camera_add(location=(7.0, -7.0, 5.0), rotation=(1.1, 0, 0.785))
-            bpy.context.scene.camera = bpy.context.active_object
-            bpy.ops.object.light_add(type='SUN', location=(5, 5, 10))
+            print("Blender: Setting up adaptive preview render...")
+            
+            # 1. Calculate Bounding Box and Extent
+            # We use the evaluated object to account for modifiers
+            bbox = [obj_eval.matrix_world @ Vector(corner) for corner in obj_eval.bound_box]
+            center = sum(bbox, Vector()) / 8
+            
+            # Find max dimension for scaling
+            dims = obj_eval.dimensions
+            max_dim = max(dims.x, dims.y, dims.z, 0.1)
+            
+            # 2. Camera Setup
+            # Baseline distance: 3.5x the max dimension (fits object well in 512x512)
+            cam_dist = max_dim * 3.0
+            # Offset the camera at an isometric-ish angle
+            cam_loc = center + Vector((cam_dist, -cam_dist, cam_dist * 0.7))
+            
+            bpy.ops.object.camera_add(location=cam_loc)
+            cam = bpy.context.active_object
+            bpy.context.scene.camera = cam
+            
+            # Point camera at center
+            direction = center - cam.location
+            rot_quat = direction.to_track_quat('-Z', 'Y')
+            cam.rotation_euler = rot_quat.to_euler()
+            
+            # 3. Light Setup
+            # Position light relative to camera and object size
+            bpy.ops.object.light_add(type='SUN', location=cam_loc + Vector((0, 0, cam_dist)))
             bpy.context.active_object.data.energy = 5.0
             
+            # 4. Render Settings
             bpy.context.scene.render.image_settings.file_format = 'PNG'
             bpy.context.scene.render.filepath = "{preview_path}"
             bpy.context.scene.render.resolution_x = 512
@@ -98,6 +117,9 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
                 print("Blender: Preview render SUCCESS.")
             except Exception as e:
                 print("Blender: Preview render FAILED: " + str(e))
+
+        # Cleanup mesh
+        obj_eval.to_mesh_clear()
 
         # --- Export ---
         print("Blender: Exporting to {output_path}")
