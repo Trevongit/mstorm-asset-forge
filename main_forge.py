@@ -5,7 +5,7 @@ import json
 import re
 import datetime
 from forge.generator import generate_bpy_script
-from forge.packager import prepare_package_dir, write_manifest, write_run_report, update_global_registry
+from forge.packager import prepare_package_dir, write_manifest, write_run_report, update_global_registry, create_zip_archive
 from forge.agent import interpret_prompt
 from forge.safety import validate_snippet
 from blender.headless import execute_headless_blender
@@ -33,6 +33,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     output_dir = options.get("output_dir", "outputs")
     no_preview = options.get("no_preview", False)
     tags_list = options.get("tags", [])
+    do_zip = options.get("zip", False)
 
     result_info = {
         "name": name,
@@ -40,6 +41,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         "status": "failed",
         "package_path": None,
         "preview_path": None,
+        "archive_path": None,
         "error": None
     }
 
@@ -121,6 +123,11 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
 
         source_type = "agent_bpy_sandbox" if python_code else "primitive"
 
+        # --- Phase 1: Write Manifest (with archive placeholder if needed) ---
+        # Note: We use the archive name even before creation so it's in the manifest
+        # which will be zipped!
+        archive_name_placeholder = f"{os.path.basename(package_path)}.zip" if do_zip else None
+
         manifest_path, asset_id, timestamp = write_manifest(
             package_path, name, primitive, scale_tuple, 
             tags=tags_list,
@@ -133,11 +140,21 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             experimental_mode=experimental_mode,
             llm_metadata=llm_metadata,
             entry_point=asset_file,
-            format=fmt
+            format=fmt,
+            archive_file=archive_name_placeholder
         )
         print(f"Forge: Manifest written to {manifest_path}")
         
-        # --- Update Global Registry ---
+        # --- Phase 2: Create ZIP (Includes the manifest just written) ---
+        archive_file = None
+        if do_zip:
+            print(f"Forge: Creating ZIP archive...")
+            archive_file = create_zip_archive(package_path)
+            if archive_file:
+                result_info["archive_path"] = archive_file
+                print(f"Forge: ZIP created: {archive_file}")
+
+        # --- Phase 3: Update Global Registry ---
         registry_info = {
             "asset_id": asset_id,
             "name": name,
@@ -145,6 +162,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             "format": fmt,
             "entry_point": os.path.join(rel_package_path, asset_file),
             "preview_path": result_info["preview_path"],
+            "archive_path": archive_file,
             "package_path": rel_package_path,
             "timestamp": timestamp
         }
@@ -178,6 +196,7 @@ def main():
     parser.add_argument("--auto-smooth", action="store_true", default=None, help="Enable auto-smooth")
     parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Export format")
     parser.add_argument("--category", type=str, help="Asset category (e.g., furniture, decor)")
+    parser.add_argument("--zip", action="store_true", help="Create a ZIP archive of the package")
     
     parser.add_argument("--author", type=str, help="Asset author name")
     parser.add_argument("--output-dir", type=str, help="Output root directory")
@@ -240,6 +259,7 @@ def main():
                 "auto_smooth": args.auto_smooth if args.auto_smooth is not None else False,
                 "format": args.format or "obj",
                 "category": args.category,
+                "zip": args.zip,
                 "author": args.author or "MStorm Forge",
                 "output_dir": args.output_dir or "outputs",
                 "tags": [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else [],
@@ -279,6 +299,7 @@ def main():
         if args.no_preview is not None: options_data["no_preview"] = args.no_preview
         if args.author is not None: options_data["author"] = args.author
         if args.category is not None: options_data["category"] = args.category
+        if args.zip is True: options_data["zip"] = True
         
         output_dir_final = options_data.get("output_dir", "outputs")
 
@@ -292,6 +313,7 @@ def main():
             if args.auto_smooth is not None: options_data["auto_smooth"] = args.auto_smooth
             if args.format is not None: options_data["format"] = args.format
             if args.category is not None: options_data["category"] = args.category
+            if args.zip is not None: options_data["zip"] = args.zip
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 
@@ -304,7 +326,7 @@ def main():
     fail_count = total - success_count
 
     run_metadata = {
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat() + "Z",
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "command": full_command,
         "output_dir": output_dir_final,
         "total_count": total,

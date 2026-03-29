@@ -9,7 +9,6 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
     """
     Generates a minimal Blender Python script to create geometry, 
     apply modifiers, render an adaptive preview, and export it as OBJ or GLB.
-    If python_code is provided, it is inserted as the geometry generation step.
     """
     # Map primitives to Blender ops
     primitive_map = {
@@ -25,130 +24,115 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
     
     shading_cmd = "bpy.ops.object.shade_smooth()" if shading.lower() == "smooth" else "bpy.ops.object.shade_flat()"
 
-    # Geometry Generation Block
+    # Geometry Generation Block - no leading indent here
     if python_code:
-        # Use provided snippet
-        geo_gen = textwrap.indent(python_code, "        ")
+        geo_gen = python_code
     else:
-        # Default primitive
-        geo_gen = f"        {op}(location=(0, 0, 0))\n        obj = bpy.context.active_object"
+        geo_gen = f"{op}(location=(0, 0, 0))\nobj = bpy.context.active_object"
 
-    script_template = textwrap.dedent("""
-        import bpy
-        import os
-        import json
-        import math
-        from mathutils import Vector
+    # We use a simple concatenation/formatting to avoid complex dedent logic
+    script = f"""import bpy
+import os
+import json
+import math
+from mathutils import Vector
 
-        # Clear existing objects
-        bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.object.delete()
+# Clear existing objects
+bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.delete()
 
-        # --- Geometry Generation ---
+# --- Geometry Generation ---
 {geo_gen}
-        obj = bpy.context.active_object
-        obj.name = "{asset_name}"
 
-        # Apply scale
-        obj.scale = ({scale_x}, {scale_y}, {scale_z})
-        bpy.ops.object.transform_apply(scale=True)
+obj = bpy.context.active_object
+obj.name = "{asset_name}"
 
-        # --- Apply Modifiers ---
-        if {bevel} > 0:
-            bev = obj.modifiers.new(name="ForgeBevel", type='BEVEL')
-            bev.width = {bevel}
-            bev.segments = 3
-            
-        if {subdivisions} > 0:
-            sub = obj.modifiers.new(name="ForgeSubsurf", type='SUBSURF')
-            sub.levels = {subdivisions}
-            sub.render_levels = {subdivisions}
+# Apply scale
+obj.scale = ({scale[0]}, {scale[1]}, {scale[2]})
+bpy.ops.object.transform_apply(scale=True)
 
-        # Apply shading
-        {shading_cmd}
-        
-        if {auto_smooth}:
-            obj.data.use_auto_smooth = True
-            obj.data.auto_smooth_angle = 0.523599 # 30 degrees
+# --- Apply Modifiers ---
+if {bevel} > 0:
+    bev = obj.modifiers.new(name="ForgeBevel", type='BEVEL')
+    bev.width = {bevel}
+    bev.segments = 3
+    
+if {subdivisions} > 0:
+    sub = obj.modifiers.new(name="ForgeSubsurf", type='SUBSURF')
+    sub.levels = {subdivisions}
+    sub.render_levels = {subdivisions}
 
-        # --- Geometry Stats Extraction (Evaluated) ---
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-        obj_eval = obj.evaluated_get(depsgraph)
-        mesh_eval = obj_eval.to_mesh()
-        
-        v_count = len(mesh_eval.vertices)
-        f_count = len(mesh_eval.polygons)
-        stats = {{"vertex_count": v_count, "face_count": f_count}}
-        print("FORGE_STATS: " + json.dumps(stats))
+# Apply shading
+{shading_cmd}
 
-        # --- Preview Rendering (Adaptive) ---
-        if "{preview_path}":
-            print("Blender: Setting up adaptive preview render...")
-            
-            bbox = [obj_eval.matrix_world @ Vector(corner) for corner in obj_eval.bound_box]
-            center = sum(bbox, Vector()) / 8
-            dims = obj_eval.dimensions
-            max_dim = max(dims.x, dims.y, dims.z, 0.1)
-            
-            cam_dist = max_dim * 3.0
-            cam_loc = center + Vector((cam_dist, -cam_dist, cam_dist * 0.7))
-            
-            bpy.ops.object.camera_add(location=cam_loc)
-            cam = bpy.context.active_object
-            bpy.context.scene.camera = cam
-            
-            direction = center - cam.location
-            rot_quat = direction.to_track_quat('-Z', 'Y')
-            cam.rotation_euler = rot_quat.to_euler()
-            
-            bpy.ops.object.light_add(type='SUN', location=cam_loc + Vector((0, 0, cam_dist)))
-            bpy.context.active_object.data.energy = 5.0
-            
-            bpy.context.scene.render.image_settings.file_format = 'PNG'
-            bpy.context.scene.render.filepath = "{preview_path}"
-            bpy.context.scene.render.resolution_x = 512
-            bpy.context.scene.render.resolution_y = 512
-            bpy.context.scene.render.resolution_percentage = 100
-            
-            try:
-                bpy.ops.render.render(write_still=True)
-                print("Blender: Preview render SUCCESS.")
-            except Exception as e:
-                print("Blender: Preview render FAILED: " + str(e))
+if {"True" if auto_smooth else "False"}:
+    obj.data.use_auto_smooth = True
+    obj.data.auto_smooth_angle = 0.523599 # 30 degrees
 
-        # Cleanup mesh
-        obj_eval.to_mesh_clear()
+# --- Geometry Stats Extraction (Evaluated) ---
+depsgraph = bpy.context.evaluated_depsgraph_get()
+obj_eval = obj.evaluated_get(depsgraph)
+mesh_eval = obj_eval.to_mesh()
 
-        # --- Export ---
-        print("Blender: Exporting to {output_path}")
-        if "{export_format}" == "glb":
-            bpy.ops.export_scene.gltf(
-                filepath="{output_path}",
-                export_format='GLB',
-                use_selection=True,
-                export_apply=True,
-                export_yup=True
-            )
-        else:
-            if hasattr(bpy.ops.wm, 'obj_export'):
-                bpy.ops.wm.obj_export(filepath="{output_path}", export_selected_objects=True, apply_modifiers=True)
-            else:
-                bpy.ops.export_scene.obj(filepath="{output_path}", use_selection=True, use_mesh_modifiers=True)
+v_count = len(mesh_eval.vertices)
+f_count = len(mesh_eval.polygons)
+stats = {{"vertex_count": v_count, "face_count": f_count}}
+print("FORGE_STATS: " + json.dumps(stats))
 
-        print("Blender: Successfully exported " + obj.name)
-    """).strip()
+# --- Preview Rendering (Adaptive) ---
+if "{abs_preview_path}":
+    print("Blender: Setting up adaptive preview render...")
+    
+    bbox = [obj_eval.matrix_world @ Vector(corner) for corner in obj_eval.bound_box]
+    center = sum(bbox, Vector()) / 8
+    dims = obj_eval.dimensions
+    max_dim = max(dims.x, dims.y, dims.z, 0.1)
+    
+    cam_dist = max_dim * 3.0
+    cam_loc = center + Vector((cam_dist, -cam_dist, cam_dist * 0.7))
+    
+    bpy.ops.object.camera_add(location=cam_loc)
+    cam = bpy.context.active_object
+    bpy.context.scene.camera = cam
+    
+    direction = center - cam.location
+    rot_quat = direction.to_track_quat('-Z', 'Y')
+    cam.rotation_euler = rot_quat.to_euler()
+    
+    bpy.ops.object.light_add(type='SUN', location=cam_loc + Vector((0, 0, cam_dist)))
+    bpy.context.active_object.data.energy = 5.0
+    
+    bpy.context.scene.render.image_settings.file_format = 'PNG'
+    bpy.context.scene.render.filepath = "{abs_preview_path}"
+    bpy.context.scene.render.resolution_x = 512
+    bpy.context.scene.render.resolution_y = 512
+    bpy.context.scene.render.resolution_percentage = 100
+    
+    try:
+        bpy.ops.render.render(write_still=True)
+        print("Blender: Preview render SUCCESS.")
+    except Exception as e:
+        print("Blender: Preview render FAILED: " + str(e))
 
-    return script_template.format(
-        geo_gen=geo_gen,
-        asset_name=asset_name,
-        scale_x=scale[0],
-        scale_y=scale[1],
-        scale_z=scale[2],
-        shading_cmd=shading_cmd,
-        bevel=bevel,
-        subdivisions=subdivisions,
-        auto_smooth="True" if auto_smooth else "False",
-        preview_path=abs_preview_path,
-        output_path=abs_output_path,
-        export_format=export_format.lower()
+# Cleanup mesh
+obj_eval.to_mesh_clear()
+
+# --- Export ---
+print("Blender: Exporting to {abs_output_path}")
+if "{export_format.lower()}" == "glb":
+    bpy.ops.export_scene.gltf(
+        filepath="{abs_output_path}",
+        export_format='GLB',
+        use_selection=True,
+        export_apply=True,
+        export_yup=True
     )
+else:
+    if hasattr(bpy.ops.wm, 'obj_export'):
+        bpy.ops.wm.obj_export(filepath="{abs_output_path}", export_selected_objects=True)
+    else:
+        bpy.ops.export_scene.obj(filepath="{abs_output_path}", use_selection=True)
+
+print("Blender: Successfully exported " + obj.name)
+"""
+    return script.strip()

@@ -2,6 +2,8 @@ import json
 import os
 import datetime
 import uuid
+import zipfile
+import time
 
 def prepare_package_dir(output_root, asset_name):
     """
@@ -18,7 +20,7 @@ def write_manifest(package_path, asset_name, primitive, scale,
                    creation_command=None, geometry_stats=None, 
                    parametric_options=None, source_type="primitive",
                    experimental_mode=False, llm_metadata=None, 
-                   entry_point=None, format="obj", version="1.0.0"):
+                   entry_point=None, format="obj", archive_file=None, version="1.0.0"):
     """
     Writes a manifest.json file to the package directory.
     """
@@ -64,6 +66,9 @@ def write_manifest(package_path, asset_name, primitive, scale,
         "tags": final_tags
     }
     
+    if archive_file:
+        manifest["archive_file"] = archive_file
+    
     if parametric_options:
         manifest["metadata"]["parametric_options"] = parametric_options
     
@@ -77,6 +82,38 @@ def write_manifest(package_path, asset_name, primitive, scale,
         json.dump(manifest, f, indent=4)
         
     return manifest_path, asset_id, manifest_timestamp
+
+def create_zip_archive(package_path):
+    """
+    Creates a zip archive of the package folder.
+    The zip lives alongside the folder in the parent directory.
+    """
+    package_path = os.path.abspath(package_path)
+    parent_dir = os.path.dirname(package_path)
+    package_name = os.path.basename(package_path)
+    zip_filename = f"{package_name}.zip"
+    zip_path = os.path.join(parent_dir, zip_filename)
+    
+    # Small grace period for OS to flush files
+    time.sleep(0.5)
+    
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            files_found = []
+            for root, dirs, files in os.walk(package_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, package_path)
+                    zipf.write(file_path, arcname)
+                    files_found.append(arcname)
+            if not files_found:
+                print(f"Forge: WARNING - ZIP folder appears empty: {package_path}")
+            else:
+                print(f"Forge: Zipped {len(files_found)} files: {', '.join(files_found)}")
+        return zip_filename
+    except Exception as e:
+        print(f"Forge: WARNING - Could not create zip archive: {e}")
+        return None
 
 def write_run_report(output_dir, run_metadata, asset_results):
     """
@@ -100,7 +137,6 @@ def write_run_report(output_dir, run_metadata, asset_results):
 def update_global_registry(output_root, asset_info):
     """
     Upserts an asset entry into the global registry.json using a logical key.
-    The registry represents the LATEST version of each unique asset identity.
     """
     registry_path = os.path.join(output_root, "registry.json")
     
@@ -112,10 +148,7 @@ def update_global_registry(output_root, asset_info):
         except Exception as e:
             print(f"Forge: WARNING - Could not read registry, starting fresh: {e}")
 
-    # LOGICAL KEY: name + category + format
-    # This ensures the registry only keeps the latest version of a specific logical asset.
     def get_logical_key(a):
-        # Normalize category to handle None/missing consistently
         cat = a.get('category')
         if cat is None: cat = ""
         return f"{a.get('name')}|{cat}|{a.get('format')}"

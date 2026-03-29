@@ -24,6 +24,7 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
   "options": {
     "format": "obj|glb (Optional, default 'obj')",
     "category": "string (Optional, e.g., 'furniture')",
+    "zip": "boolean (Optional, default false)",
     "shading": "flat|smooth (Optional, default 'flat')",
     "bevel": "float (Optional, non-negative, default 0.0)",
     "subdivisions": "int (Optional, 0-5, default 0)",
@@ -47,6 +48,7 @@ The Forge produces a timestamped directory containing the following artifacts:
 ```text
 outputs/
 ├── registry.json       # Global library index (Latest-only upsert)
+├── <package_name>.zip  # Compressed package (if zip=true)
 └── <YYYYMMDD_HHMMSS>_<asset_name>/
     ├── asset.obj       # The 3D model (if format=obj)
     ├── asset.mtl       # Associated material library (if format=obj)
@@ -56,7 +58,6 @@ outputs/
 ```
 
 ### Global Registry Schema (`registry.json`)
-The `registry.json` file at the root of the output directory serves as the primary library index for consumers. It represents the **LATEST** version of each unique logical asset (keyed by `name`, `category`, and `format`).
 ```json
 {
   "last_updated": "ISO-8601-UTC",
@@ -68,6 +69,7 @@ The `registry.json` file at the root of the output directory serves as the prima
       "format": "obj|glb",
       "entry_point": "package_folder/asset.ext",
       "preview_path": "package_folder/preview.png",
+      "archive_path": "package_name.zip (Optional)",
       "package_path": "package_folder",
       "timestamp": "ISO-8601-UTC"
     }
@@ -83,6 +85,7 @@ The `registry.json` file at the root of the output directory serves as the prima
   "type": "static_prop",
   "format": "obj|glb",
   "entry_point": "asset.ext",
+  "archive_file": "package_name.zip (Optional)",
   "version": "1.0.0",
   "author": "author_name",
   "generator": "MStorm Asset Forge v0.1",
@@ -116,7 +119,5 @@ The `registry.json` file at the root of the output directory serves as the prima
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
+*   **ZIP Packaging:** When `--zip` is enabled, the Forge creates a compressed archive of the asset package folder. This archive is stored at the root of the output directory, alongside the unpacked folder.
 *   **Global Registry:** Every successful generation run automatically updates `outputs/registry.json`. The registry uses a logical identity key (`name|category|format`) to ensure it only tracks the most recent package for each asset identity. Older package folders are preserved on disk but removed from the registry index when a newer version is generated.
-*   **Asset Entry Point:** Consumers should always use the `entry_point` field in the manifest or registry to locate the primary model file.
-*   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.
-*   **Format Notes:** GLB export requires `numpy` to be available in the Blender Python environment.
