@@ -1,10 +1,11 @@
+# MStorm Asset Forge Ignore Rules
 remoteassets/
 *pycache*/
 *log
 results/
 *.bat
 *init*
-ll3m/
+# ll3m/ - removed legacy
 blender4.4_pdfs/
 .env
 .env.local

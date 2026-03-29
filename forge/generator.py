@@ -8,18 +8,9 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
                         output_path="asset.obj", preview_path=None, 
                         export_format="obj", python_code=None):
     """
-    Generates a minimal Blender Python script to create geometry, 
+    Generates a minimal Blender Python script to create geometry (primitives or modular props), 
     apply PBR materials and modifiers, render a preview, and export.
     """
-    # Map primitives to Blender ops
-    primitive_map = {
-        "cube": "bpy.ops.mesh.primitive_cube_add",
-        "sphere": "bpy.ops.mesh.primitive_uv_sphere_add",
-        "cylinder": "bpy.ops.mesh.primitive_cylinder_add",
-        "plane": "bpy.ops.mesh.primitive_plane_add"
-    }
-    
-    op = primitive_map.get(primitive.lower(), "bpy.ops.mesh.primitive_cube_add")
     abs_output_path = os.path.abspath(output_path)
     abs_preview_path = os.path.abspath(preview_path) if preview_path else ""
     
@@ -28,10 +19,68 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
     # Geometry Generation Block
     if python_code:
         geo_gen = python_code
+    elif primitive.lower() == "table":
+        geo_gen = """
+# Table Assembly (Top + 4 Legs)
+# Top
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.9))
+top = bpy.context.active_object
+top.scale = (1.5, 1.0, 0.1)
+
+# Legs
+leg_coords = [(1.3, 0.8, 0.45), (1.3, -0.8, 0.45), (-1.3, 0.8, 0.45), (-1.3, -0.8, 0.45)]
+for i, (lx, ly, lz) in enumerate(leg_coords):
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.05, depth=0.9, location=(lx, ly, lz))
+    leg = bpy.context.active_object
+    leg.parent = top
+    
+bpy.context.view_layer.objects.active = top
+bpy.ops.object.select_all(action='DESELECT')
+top.select_set(True)
+for child in top.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    elif primitive.lower() == "stool":
+        geo_gen = """
+# Stool Assembly (Seat + 4 Legs)
+# Seat
+bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=0.1, location=(0, 0, 0.5))
+seat = bpy.context.active_object
+
+# Legs
+leg_coords = [(0.3, 0.3, 0.25), (0.3, -0.3, 0.25), (-0.3, 0.3, 0.25), (-0.3, -0.3, 0.25)]
+for i, (lx, ly, lz) in enumerate(leg_coords):
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=0.5, location=(lx, ly, lz))
+    leg = bpy.context.active_object
+    leg.parent = seat
+    
+bpy.context.view_layer.objects.active = seat
+bpy.ops.object.select_all(action='DESELECT')
+seat.select_set(True)
+for child in seat.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    elif primitive.lower() == "crate":
+        geo_gen = """
+# Crate Assembly (Solid box with frame-ready topology)
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
+obj = bpy.context.active_object
+"""
     else:
+        # Standard Primitives
+        primitive_map = {
+            "cube": "bpy.ops.mesh.primitive_cube_add",
+            "sphere": "bpy.ops.mesh.primitive_uv_sphere_add",
+            "cylinder": "bpy.ops.mesh.primitive_cylinder_add",
+            "plane": "bpy.ops.mesh.primitive_plane_add"
+        }
+        op = primitive_map.get(primitive.lower(), "bpy.ops.mesh.primitive_cube_add")
         geo_gen = f"{op}(location=(0, 0, 0))\nobj = bpy.context.active_object"
 
-    # Fix: Ensure base_color is properly quoted if string
     color_repr = f"'{base_color}'" if isinstance(base_color, str) else str(base_color)
 
     script = f"""import bpy

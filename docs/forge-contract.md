@@ -5,7 +5,7 @@ This document formalizes the input, output, and behavior contracts for the MStor
 ## 1. Versioning
 *   **Contract Version:** MVP v0.1
 *   **Primary Export Baselines:** OBJ/MTL, GLB
-*   **Status:** Stable for Static Props
+*   **Status:** Stable for Static Props & Modular Assemblies
 
 ---
 
@@ -18,7 +18,7 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
 {
   "asset": {
     "name": "string (Required)",
-    "primitive": "cube|sphere|cylinder|plane (Required for standard mode)",
+    "primitive": "cube|sphere|cylinder|plane|table|stool|crate (Required for standard mode)",
     "scale": [float, float, float] (Optional, default [1.0, 1.0, 1.0])
   },
   "options": {
@@ -60,42 +60,15 @@ outputs/
     └── preview.png     # Rendered preview (Optional, non-fatal)
 ```
 
-### Manifest Schema (`manifest.json`)
-```json
-{
-  "asset_id": "uuid-v4",
-  "name": "asset_name",
-  "type": "static_prop",
-  "format": "obj|glb",
-  "entry_point": "asset.ext",
-  "version": "1.0.0",
-  "author": "author_name",
-  "generator": "MStorm Asset Forge v0.1",
-  "timestamp": "ISO-8601-UTC",
-  "metadata": {
-    "primitive": "primitive_type",
-    "scale": [x, y, z],
-    "unit_system": "metric",
-    "is_rigged": false,
-    "parametric_options": {
-        "base_color": "string|list",
-        "metallic": float,
-        "roughness": float,
-        "bevel": float,
-        "subdivisions": int,
-        "auto_smooth": boolean,
-        "shading": "flat|smooth"
-    }
-  }
-}
-```
-
 ---
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
-*   **PBR Materials:** The Forge uses a standard **Blender Principled BSDF** material.
-    *   **GLB Path:** Supports full PBR (Color, Metal, Rough).
-    *   **OBJ Path:** Primarily supports Color (Diffuse); Metallic and Roughness may not be accurately represented in MTL.
-*   **Experimental Sandbox Mode:** Triggered via `--prompt-to-bpy`. Allows LLM-generated code snippets for geometry generation only.
+*   **Modular Props:** 
+    *   `table`: Flat top with four cylindrical legs.
+    *   `stool`: Rounded seat with four cylindrical legs.
+    *   `crate`: Solid box with frame-ready topology.
+    *   *Scale:* Applied to the entire assembly after grouping.
+*   **PBR Materials:** Applied uniformly to all parts of a modular assembly.
+*   **Modifier Behavior:** Applied to the final joined assembly.
 *   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.

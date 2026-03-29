@@ -182,10 +182,11 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         if val_warnings:
             print(f"Forge: Validation Warnings: {', '.join(val_warnings)}")
 
-        # Write manifest last
+        # Write manifest last to reflect actual content
         archive_name_placeholder = f"{os.path.basename(package_path)}.zip" if do_zip else None
 
-        write_manifest(
+        # Capture the asset_id and timestamp returned by write_manifest
+        manifest_path, asset_id, timestamp = write_manifest(
             package_path, name, primitive, scale_tuple, 
             tags=tags_list,
             preview_file=final_preview,
@@ -254,7 +255,7 @@ def main():
     
     # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
-    parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
+    parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane", "table", "stool", "crate"], help="Primitive or Modular Prop type")
     parser.add_argument("--scale", type=str, help="Comma-separated scale (x,y,z)")
     parser.add_argument("--shading", type=str, choices=["flat", "smooth"], help="Shading type")
     parser.add_argument("--bevel", type=float, help="Bevel width")
