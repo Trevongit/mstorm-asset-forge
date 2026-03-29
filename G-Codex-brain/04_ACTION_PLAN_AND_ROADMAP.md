@@ -15,9 +15,14 @@
 - [x] **Registry:** Persistent logical latest-asset library index (`registry.json`).
 - [x] **Packaging:** Added optional ZIP archive support for distributable assets.
 - [x] **Library Management:** Added `--prune` utility for historical cleanup.
-- [x] **Entry Points:** Standardized `entry_point` in manifest for consumers.
 
-## Phase 4: Production Handoff (Next)
-- [ ] **Asset Validation:** Add a tool to verify GLB/OBJ files against MStorm constraints.
-- [ ] **Batch Generator:** Allow the LLM to generate complex multi-item batch request files.
-- [ ] **Studio Bridge:** Export helper to copy assets directly into an MStorm project path.
+## Phase 4: Production Handoff & Validation (Completed)
+- [x] **Validation:** Post-generation integrity and performance checks.
+- [x] **Project Sync:** Helper to copy registry items to external project paths.
+- [x] **Integrity:** Hardened success signals and artifact verification.
+- [x] **Batch Architect:** LLM-driven multi-item generation from a single prompt.
+
+## Phase 5: Advanced Automation (Next)
+- [ ] **Visual Critique:** Automated feedback loop using rendered previews to refine geometry.
+- [ ] **Geometry Library:** Pre-baked high-quality BPY templates for common furniture/assets.
+- [ ] **Material Support:** Expand contract to support PBR material parameters (Metal/Rough).
