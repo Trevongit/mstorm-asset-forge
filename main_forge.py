@@ -9,7 +9,7 @@ from forge.generator import generate_bpy_script
 from forge.packager import (
     prepare_package_dir, write_manifest, write_run_report, 
     update_global_registry, create_zip_archive, prune_stale_assets,
-    sync_assets_to_project
+    sync_assets_to_project, get_library_list, get_asset_info
 )
 from forge.agent import interpret_prompt
 from forge.safety import validate_snippet
@@ -182,10 +182,10 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         if val_warnings:
             print(f"Forge: Validation Warnings: {', '.join(val_warnings)}")
 
-        # Write manifest last to reflect actual content
+        # Write manifest last
         archive_name_placeholder = f"{os.path.basename(package_path)}.zip" if do_zip else None
 
-        manifest_path, asset_id, timestamp = write_manifest(
+        write_manifest(
             package_path, name, primitive, scale_tuple, 
             tags=tags_list,
             preview_file=final_preview,
@@ -248,6 +248,10 @@ def main():
     parser.add_argument("--sync-name", type=str, help="Limit sync to a specific asset name")
     parser.add_argument("--sync-category", type=str, help="Limit sync to a specific category")
     
+    # Explorer
+    parser.add_argument("--list", action="store_true", help="List all assets in the registry")
+    parser.add_argument("--info", type=str, help="Show detailed information for a specific asset name")
+    
     # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
@@ -274,6 +278,32 @@ def main():
     full_command = " ".join(sys.argv)
     output_dir_final = args.output_dir or "outputs"
 
+    # --- Explorer Path ---
+    if args.list:
+        print(f"Forge: Library Assets in '{output_dir_final}':")
+        # EXPLORER FILTERS (Dedicated)
+        assets = get_library_list(
+            output_dir_final, 
+            category_filter=args.category, 
+            format_filter=args.format
+        )
+        if not assets:
+            print(" No assets found.")
+        for a in assets:
+            cat = f" [{a.get('category')}]" if a.get('category') else ""
+            print(f" - {a.get('name')}{cat} ({a.get('format')}) -> {a.get('package_path')}")
+        sys.exit(0)
+
+    if args.info:
+        info = get_asset_info(output_dir_final, args.info)
+        if not info:
+            print(f"Forge: Asset '{args.info}' not found in registry.")
+            sys.exit(1)
+        print(f"\n--- Asset Info: {args.info} ---")
+        print(json.dumps(info, indent=2))
+        sys.exit(0)
+
+    # --- Pruning Path ---
     if args.prune:
         print(f"Forge: Pruning stale assets in '{output_dir_final}'...")
         try:
@@ -283,6 +313,8 @@ def main():
             else:
                 print(f"\nPrune Complete: Removed {summary['removed_folders']} folders and {summary['removed_zips']} zips.")
             print(f"Protected items skipped: {summary['protected_count']}")
+            if summary['errors'] > 0:
+                print(f"Errors encountered: {summary['errors']}")
             sys.exit(0)
         except Exception as e:
             print(f"Forge Error: {e}")

@@ -99,13 +99,11 @@ def create_zip_archive(package_path):
     
     try:
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            files_found = []
             for root, dirs, files in os.walk(package_path):
                 for file in files:
                     file_path = os.path.join(root, file)
                     arcname = os.path.relpath(file_path, package_path)
                     zipf.write(file_path, arcname)
-                    files_found.append(arcname)
         return zip_filename
     except Exception as e:
         print(f"Forge: WARNING - Could not create zip archive: {e}")
@@ -266,7 +264,6 @@ def sync_assets_to_project(output_root, target_path, name_filter=None, category_
     assets = registry.get("assets", [])
     selected_assets = []
     
-    # 1. Filter
     for a in assets:
         if name_filter and a.get("name") != name_filter:
             continue
@@ -287,12 +284,10 @@ def sync_assets_to_project(output_root, target_path, name_filter=None, category_
         os.makedirs(target_path, exist_ok=True)
 
     for a in selected_assets:
-        # A. Copy Folder
         pkg_rel = a.get("package_path")
         if pkg_rel:
             src_pkg = os.path.join(output_root, pkg_rel)
             dst_pkg = os.path.join(target_path, pkg_rel)
-            
             if os.path.exists(src_pkg):
                 if dry_run:
                     print(f" [SYNC] Folder: {pkg_rel}")
@@ -309,12 +304,10 @@ def sync_assets_to_project(output_root, target_path, name_filter=None, category_
                 print(f"Forge: WARNING - Source folder missing: {src_pkg}")
                 warnings += 1
 
-        # B. Copy ZIP
         zip_rel = a.get("archive_path")
         if zip_rel:
             src_zip = os.path.join(output_root, zip_rel)
             dst_zip = os.path.join(target_path, zip_rel)
-            
             if os.path.exists(src_zip):
                 if dry_run:
                     print(f" [SYNC] ZIP:    {zip_rel}")
@@ -336,3 +329,60 @@ def sync_assets_to_project(output_root, target_path, name_filter=None, category_
         "warnings": warnings,
         "errors": errors
     }
+
+def get_library_list(output_root, category_filter=None, format_filter=None):
+    """
+    Returns a list of assets from registry.json.
+    """
+    registry_path = os.path.join(output_root, "registry.json")
+    if not os.path.exists(registry_path):
+        return []
+
+    try:
+        with open(registry_path, 'r') as f:
+            registry = json.load(f)
+    except Exception:
+        return []
+
+    assets = registry.get("assets", [])
+    filtered = []
+    for a in assets:
+        if category_filter and a.get("category") != category_filter:
+            continue
+        if format_filter and a.get("format") != format_filter:
+            continue
+        filtered.append(a)
+    return filtered
+
+def get_asset_info(output_root, asset_name):
+    """
+    Loads full manifest for a specific named asset in the registry.
+    """
+    registry_path = os.path.join(output_root, "registry.json")
+    if not os.path.exists(registry_path):
+        return None
+
+    try:
+        with open(registry_path, 'r') as f:
+            registry = json.load(f)
+    except Exception:
+        return None
+
+    # Find the latest matching asset name
+    target = None
+    for a in registry.get("assets", []):
+        if a.get("name") == asset_name:
+            target = a
+            # We don't break because we want the latest entry in the list if duplicates exist
+            
+    if not target or not target.get("package_path"):
+        return None
+
+    manifest_path = os.path.join(output_root, target["package_path"], "manifest.json")
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path, 'r') as f:
+                return json.load(f)
+        except Exception:
+            return None
+    return None
