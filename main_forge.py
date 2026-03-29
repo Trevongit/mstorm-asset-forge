@@ -252,6 +252,8 @@ def main():
     # Explorer
     parser.add_argument("--list", action="store_true", help="List all assets in the registry")
     parser.add_argument("--info", type=str, help="Show detailed information for a specific asset name")
+    parser.add_argument("--sort", type=str, choices=["name", "date"], default="date", help="Sort library list")
+    parser.add_argument("--json", action="store_true", help="Output explorer results as JSON")
     
     # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
@@ -281,18 +283,22 @@ def main():
 
     # --- Explorer Path ---
     if args.list:
-        print(f"Forge: Library Assets in '{output_dir_final}':")
-        # EXPLORER FILTERS (Dedicated)
         assets = get_library_list(
             output_dir_final, 
             category_filter=args.category, 
-            format_filter=args.format
+            format_filter=args.format,
+            sort_by=args.sort
         )
-        if not assets:
-            print(" No assets found.")
-        for a in assets:
-            cat = f" [{a.get('category')}]" if a.get('category') else ""
-            print(f" - {a.get('name')}{cat} ({a.get('format')}) -> {a.get('package_path')}")
+        if args.json:
+            print(json.dumps(assets, indent=2))
+        else:
+            print(f"Forge: Library Assets in '{output_dir_final}' (sorted by {args.sort}):")
+            if not assets:
+                print(" No assets found.")
+            for a in assets:
+                cat = f" [{a.get('category')}]" if a.get('category') else ""
+                val_status = "OK" if a.get('validation_success') else "WARN"
+                print(f" - {a.get('name')}{cat} ({a.get('format')}) [{val_status}] -> {a.get('package_path')}")
         sys.exit(0)
 
     if args.info:
@@ -300,8 +306,11 @@ def main():
         if not info:
             print(f"Forge: Asset '{args.info}' not found in registry.")
             sys.exit(1)
-        print(f"\n--- Asset Info: {args.info} ---")
-        print(json.dumps(info, indent=2))
+        if args.json:
+            print(json.dumps(info, indent=2))
+        else:
+            print(f"\n--- Asset Info: {args.info} ---")
+            print(json.dumps(info, indent=2))
         sys.exit(0)
 
     # --- Pruning Path ---

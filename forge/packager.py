@@ -330,9 +330,9 @@ def sync_assets_to_project(output_root, target_path, name_filter=None, category_
         "errors": errors
     }
 
-def get_library_list(output_root, category_filter=None, format_filter=None):
+def get_library_list(output_root, category_filter=None, format_filter=None, sort_by="date"):
     """
-    Returns a list of assets from registry.json.
+    Returns a list of assets from registry.json with filtering and sorting.
     """
     registry_path = os.path.join(output_root, "registry.json")
     if not os.path.exists(registry_path):
@@ -352,6 +352,14 @@ def get_library_list(output_root, category_filter=None, format_filter=None):
         if format_filter and a.get("format") != format_filter:
             continue
         filtered.append(a)
+        
+    # Sorting
+    if sort_by == "name":
+        filtered.sort(key=lambda x: x.get("name", "").lower())
+    elif sort_by == "date":
+        # Registry is usually appended to, but we ensure descending date (latest first)
+        filtered.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        
     return filtered
 
 def get_asset_info(output_root, asset_name):
@@ -369,11 +377,12 @@ def get_asset_info(output_root, asset_name):
         return None
 
     # Find the latest matching asset name
+    # We iterate backwards to find the most recent entry if logic allows duplicates
     target = None
-    for a in registry.get("assets", []):
+    for a in reversed(registry.get("assets", [])):
         if a.get("name") == asset_name:
             target = a
-            # We don't break because we want the latest entry in the list if duplicates exist
+            break
             
     if not target or not target.get("package_path"):
         return None
