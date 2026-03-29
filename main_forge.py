@@ -22,7 +22,10 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     Returns (bool success, str message, dict result_info)
     """
     name = asset_params.get("name", "prop")
+    # Resolve preset if specified
+    preset_name = options.get("preset")
     primitive = asset_params.get("primitive", "cube")
+    
     scale_tuple = tuple(map(float, asset_params.get("scale", [1.0, 1.0, 1.0])))
     
     shading = options.get("shading", "flat")
@@ -52,7 +55,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
 
     result_info = {
         "name": name,
-        "primitive": primitive,
+        "primitive": primitive if not preset_name else f"preset:{preset_name}",
         "status": "failed",
         "package_path": None,
         "preview_path": None,
@@ -88,7 +91,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             result_info["error"] = f"Sandbox Validation Failed: {err}"
             return False, result_info["error"], result_info
 
-    print(f"\n>>> Forge Item: '{name}' ({primitive}) <<<")
+    print(f"\n>>> Forge Item: '{name}' ({primitive if not preset_name else f'PRESET:{preset_name}'}) <<<")
     
     if dry_run:
         print(f"DRY RUN: Validation passed for '{name}'.")
@@ -122,10 +125,11 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         output_path=asset_path, 
         preview_path=preview_path,
         export_format=fmt,
-        python_code=python_code
+        python_code=python_code,
+        preset_name=preset_name
     )
     
-    print(f"Forge: Executing Blender headless ({primitive})...")
+    print(f"Forge: Executing Blender headless ({primitive if not preset_name else preset_name})...")
     result = execute_headless_blender(bpy_script, timeout=60)
     
     # 3. Handle Result
@@ -218,7 +222,8 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             entry_point=asset_file,
             format=fmt,
             archive_file=archive_name_placeholder,
-            validation_results=validation_report
+            validation_results=validation_report,
+            preset_name=preset_name
         )
         print(f"Forge: Manifest written to {package_path}/manifest.json")
         
@@ -274,6 +279,7 @@ def main():
     # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane", "table", "stool", "crate"], help="Primitive or Modular Prop type")
+    parser.add_argument("--preset", type=str, help="Deterministic Preset/Archetype name")
     parser.add_argument("--scale", type=str, help="Comma-separated scale (x,y,z)")
     parser.add_argument("--shading", type=str, choices=["flat", "smooth"], help="Shading type")
     parser.add_argument("--bevel", type=float, help="Bevel width")
@@ -433,6 +439,7 @@ def main():
                 "format": args.format or "obj",
                 "category": args.category,
                 "zip": args.zip,
+                "preset": args.preset,
                 "base_color": args.color or "#CCCCCC",
                 "metallic": args.metallic or 0.0,
                 "roughness": args.roughness or 0.5,
@@ -464,7 +471,7 @@ def main():
         if args.file or args.prompt:
             missing = []
             if "name" not in asset_data: missing.append("asset.name")
-            if not options_data.get("experimental_mode") and "primitive" not in asset_data: 
+            if not options_data.get("experimental_mode") and not options_data.get("preset") and "primitive" not in asset_data: 
                 missing.append("asset.primitive")
             if missing:
                 print(f"\n[Item {i}] Error: Missing required fields: {', '.join(missing)}")
@@ -491,6 +498,7 @@ def main():
             if args.format is not None: options_data["format"] = args.format
             if args.category is not None: options_data["category"] = args.category
             if args.zip is not None: options_data["zip"] = args.zip
+            if args.preset is not None: options_data["preset"] = args.preset
             if args.color is not None: options_data["base_color"] = args.color
             if args.metallic is not None: options_data["metallic"] = args.metallic
             if args.roughness is not None: options_data["roughness"] = args.roughness

@@ -1,6 +1,141 @@
 import textwrap
 import os
 
+PRESETS = {
+    "chair_basic": {
+        "primitive": "chair",
+        "description": "Standard four-legged chair with backrest",
+        "bpy_code": """
+# Chair Assembly
+# Seat
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.5))
+seat = bpy.context.active_object
+seat.scale = (0.5, 0.5, 0.05)
+
+# Legs
+leg_coords = [(0.4, 0.4, 0.25), (0.4, -0.4, 0.25), (-0.4, 0.4, 0.25), (-0.4, -0.4, 0.25)]
+for lx, ly, lz in leg_coords:
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=0.5, location=(lx, ly, lz))
+    bpy.context.active_object.parent = seat
+
+# Backrest
+bpy.ops.mesh.primitive_cube_add(size=1, location=(-0.45, 0, 1.0))
+back = bpy.context.active_object
+back.scale = (0.05, 0.5, 0.5)
+back.parent = seat
+
+bpy.context.view_layer.objects.active = seat
+bpy.ops.object.select_all(action='DESELECT')
+seat.select_set(True)
+for child in seat.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "dining_table_basic": {
+        "primitive": "table",
+        "description": "Large dining table",
+        "bpy_code": """
+# Dining Table Assembly
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.75))
+top = bpy.context.active_object
+top.scale = (1.0, 0.5, 0.05) # 2m x 1m top
+
+leg_coords = [(0.9, 0.4, 0.375), (0.9, -0.4, 0.375), (-0.9, 0.4, 0.375), (-0.9, -0.4, 0.375)]
+for lx, ly, lz in leg_coords:
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.05, depth=0.75, location=(lx, ly, lz))
+    bpy.context.active_object.parent = top
+
+bpy.context.view_layer.objects.active = top
+bpy.ops.object.select_all(action='DESELECT')
+top.select_set(True)
+for child in top.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "shelf_simple": {
+        "primitive": "shelf",
+        "description": "Basic multi-tier shelf",
+        "bpy_code": """
+# Shelf Assembly
+# Sides
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0.5, 1.0))
+side_l = bpy.context.active_object
+side_l.scale = (0.4, 0.05, 1.0)
+
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, -0.5, 1.0))
+side_r = bpy.context.active_object
+side_r.scale = (0.4, 0.05, 1.0)
+side_r.parent = side_l
+
+# Shelves
+heights = [0.2, 0.9, 1.6]
+for h in heights:
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, h))
+    s = bpy.context.active_object
+    s.scale = (0.4, 0.45, 0.03)
+    s.parent = side_l
+
+bpy.context.view_layer.objects.active = side_l
+bpy.ops.object.select_all(action='DESELECT')
+side_l.select_set(True)
+for child in side_l.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "crate_stackable": {
+        "primitive": "crate",
+        "description": "Reinforced stackable crate",
+        "bpy_code": """
+# Stackable Crate
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.5))
+base = bpy.context.active_object
+base.scale = (0.5, 0.5, 0.5)
+
+# Corner posts for "stackable" feel
+coords = [(0.45, 0.45, 0.5), (0.45, -0.45, 0.5), (-0.45, 0.45, 0.5), (-0.45, -0.45, 0.5)]
+for lx, ly, lz in coords:
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.06, depth=1.1, location=(lx, ly, lz))
+    bpy.context.active_object.parent = base
+
+bpy.context.view_layer.objects.active = base
+bpy.ops.object.select_all(action='DESELECT')
+base.select_set(True)
+for child in base.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "stool_round": {
+        "primitive": "stool",
+        "description": "Round stool preset",
+        "bpy_code": """
+# Stool Assembly
+bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=0.1, location=(0, 0, 0.5))
+seat = bpy.context.active_object
+
+leg_coords = [(0.3, 0.3, 0.25), (0.3, -0.3, 0.25), (-0.3, 0.3, 0.25), (-0.3, -0.3, 0.25)]
+for lx, ly, lz in leg_coords:
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=0.5, location=(lx, ly, lz))
+    bpy.context.active_object.parent = seat
+
+bpy.context.view_layer.objects.active = seat
+bpy.ops.object.select_all(action='DESELECT')
+seat.select_set(True)
+for child in seat.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    }
+}
+
 def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), 
                         shading="flat", bevel=0.0, subdivisions=0, 
                         auto_smooth=False, base_color=(0.8, 0.8, 0.8), 
@@ -8,7 +143,8 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
                         emission_color=(0.0, 0.0, 0.0), emission_strength=0.0,
                         alpha=1.0, material_name="ForgeMaterial",
                         output_path="asset.obj", preview_path=None, 
-                        export_format="obj", python_code=None):
+                        export_format="obj", python_code=None,
+                        preset_name=None):
     """
     Generates a minimal Blender Python script to create geometry (primitives or modular props), 
     apply PBR materials and modifiers, render a preview, and export.
@@ -21,6 +157,8 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
     # Geometry Generation Block
     if python_code:
         geo_gen = python_code
+    elif preset_name and preset_name in PRESETS:
+        geo_gen = PRESETS[preset_name]["bpy_code"]
     elif primitive.lower() == "table":
         geo_gen = """
 # Table Assembly (Top + 4 Legs)

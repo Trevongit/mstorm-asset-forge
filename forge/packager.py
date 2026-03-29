@@ -22,16 +22,19 @@ def write_manifest(package_path, asset_name, primitive, scale,
                    parametric_options=None, source_type="primitive",
                    experimental_mode=False, llm_metadata=None, 
                    entry_point=None, format="obj", archive_file=None, 
-                   validation_results=None, version="1.0.0"):
+                   validation_results=None, version="1.0.0",
+                   preset_name=None):
     """
     Writes a manifest.json file to the package directory.
     """
     manifest_timestamp = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     asset_id = str(uuid.uuid4())
     
-    final_tags = ["generated", "mvp", "prop", primitive.lower()]
+    final_tags = ["generated", "mvp", "prop", (preset_name or primitive).lower()]
     if experimental_mode:
         final_tags.append("experimental")
+    if preset_name:
+        final_tags.append("preset")
 
     if tags:
         for t in tags:
@@ -40,10 +43,12 @@ def write_manifest(package_path, asset_name, primitive, scale,
                 final_tags.append(t_clean)
     
     provenance = {
-        "source_type": source_type,
+        "source_type": source_type if not preset_name else "preset",
         "creation_command": creation_command or "Manual",
         "experimental_mode": experimental_mode
     }
+    if preset_name:
+        provenance["preset_name"] = preset_name
     if llm_metadata:
         provenance.update(llm_metadata)
 
@@ -59,7 +64,7 @@ def write_manifest(package_path, asset_name, primitive, scale,
         "timestamp": manifest_timestamp,
         "provenance": provenance,
         "metadata": {
-            "primitive": primitive,
+            "primitive": primitive if not preset_name else "preset_assembly",
             "scale": scale,
             "unit_system": "metric",
             "unit_scale": "1.0 unit = 1.0 meter",

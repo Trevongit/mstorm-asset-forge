@@ -33,3 +33,4 @@
 | 2026-03-29 | Phase 4 Slice 3b: Main_forge integrity gate | `778f76f` | GCagent |
 | 2026-03-29 | Phase 4 Slice 4: LLM Batch Architect | `45775b7` | GCagent |
 | 2026-03-29 | Phase 4 Final: docs & Phase 4 closeout | `20440e2` | GCagent |
+| 2026-03-30 | Phase 6 Slice 1: Asset Presets / Archetypes | `dd926aa924d92007be7c63f1ec743e8287ba2b38` | GCagent |
