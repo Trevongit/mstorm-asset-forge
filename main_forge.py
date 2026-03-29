@@ -5,7 +5,10 @@ import json
 import re
 import datetime
 from forge.generator import generate_bpy_script
-from forge.packager import prepare_package_dir, write_manifest, write_run_report, update_global_registry, create_zip_archive
+from forge.packager import (
+    prepare_package_dir, write_manifest, write_run_report, 
+    update_global_registry, create_zip_archive, prune_stale_assets
+)
 from forge.agent import interpret_prompt
 from forge.safety import validate_snippet
 from blender.headless import execute_headless_blender
@@ -123,9 +126,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
 
         source_type = "agent_bpy_sandbox" if python_code else "primitive"
 
-        # --- Phase 1: Write Manifest (with archive placeholder if needed) ---
-        # Note: We use the archive name even before creation so it's in the manifest
-        # which will be zipped!
+        # Write manifest BEFORE zip so it's included
         archive_name_placeholder = f"{os.path.basename(package_path)}.zip" if do_zip else None
 
         manifest_path, asset_id, timestamp = write_manifest(
@@ -145,7 +146,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         )
         print(f"Forge: Manifest written to {manifest_path}")
         
-        # --- Phase 2: Create ZIP (Includes the manifest just written) ---
+        # Optional ZIP creation
         archive_file = None
         if do_zip:
             print(f"Forge: Creating ZIP archive...")
@@ -154,7 +155,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
                 result_info["archive_path"] = archive_file
                 print(f"Forge: ZIP created: {archive_file}")
 
-        # --- Phase 3: Update Global Registry ---
+        # --- Update Global Registry ---
         registry_info = {
             "asset_id": asset_id,
             "name": name,
@@ -187,6 +188,9 @@ def main():
     parser.add_argument("--model", type=str, help="LLM model name")
     parser.add_argument("--dry-run", action="store_true", help="Interpret and validate without running Blender")
     
+    # Utilities
+    parser.add_argument("--prune", action="store_true", help="Remove stale asset folders and archives not in registry")
+    
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
     parser.add_argument("--scale", type=str, help="Comma-separated scale (x,y,z)")
@@ -195,7 +199,7 @@ def main():
     parser.add_argument("--subdivisions", type=int, help="Subdivision levels (0-5)")
     parser.add_argument("--auto-smooth", action="store_true", default=None, help="Enable auto-smooth")
     parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Export format")
-    parser.add_argument("--category", type=str, help="Asset category (e.g., furniture, decor)")
+    parser.add_argument("--category", type=str, help="Asset category")
     parser.add_argument("--zip", action="store_true", help="Create a ZIP archive of the package")
     
     parser.add_argument("--author", type=str, help="Asset author name")
@@ -206,6 +210,25 @@ def main():
     args = parser.parse_args()
     full_command = " ".join(sys.argv)
     
+    output_dir_final = args.output_dir or "outputs"
+
+    # --- Pruning Path ---
+    if args.prune:
+        print(f"Forge: Pruning stale assets in '{output_dir_final}'...")
+        try:
+            summary = prune_stale_assets(output_dir_final, dry_run=args.dry_run)
+            if args.dry_run:
+                print(f"\nPrune Dry Run Summary: Found {summary['found']} items to remove.")
+            else:
+                print(f"\nPrune Complete: Removed {summary['removed_folders']} folders and {summary['removed_zips']} zips.")
+            print(f"Protected items skipped: {summary['protected_count']}")
+            if summary['errors'] > 0:
+                print(f"Errors encountered: {summary['errors']}")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Forge Error: {e}")
+            sys.exit(1)
+
     requests = []
     global_llm_metadata = None
 
@@ -261,7 +284,7 @@ def main():
                 "category": args.category,
                 "zip": args.zip,
                 "author": args.author or "MStorm Forge",
-                "output_dir": args.output_dir or "outputs",
+                "output_dir": output_dir_final,
                 "tags": [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else [],
                 "no_preview": args.no_preview if args.no_preview is not None else False
             }
@@ -271,7 +294,6 @@ def main():
     total = len(requests)
     is_batch = total > 1
     asset_results = []
-    output_dir_final = "outputs"
 
     if args.dry_run:
         print("--- DRY RUN MODE ENABLED ---")
@@ -301,7 +323,8 @@ def main():
         if args.category is not None: options_data["category"] = args.category
         if args.zip is True: options_data["zip"] = True
         
-        output_dir_final = options_data.get("output_dir", "outputs")
+        # Ensure we use the final dir for each item
+        item_output_dir = options_data.get("output_dir", output_dir_final)
 
         if not is_batch:
             if args.name is not None: asset_data["name"] = args.name

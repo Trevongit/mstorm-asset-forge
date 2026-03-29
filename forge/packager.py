@@ -4,6 +4,7 @@ import datetime
 import uuid
 import zipfile
 import time
+import shutil
 
 def prepare_package_dir(output_root, asset_name):
     """
@@ -68,10 +69,8 @@ def write_manifest(package_path, asset_name, primitive, scale,
     
     if archive_file:
         manifest["archive_file"] = archive_file
-    
     if parametric_options:
         manifest["metadata"]["parametric_options"] = parametric_options
-    
     if preview_file:
         manifest["preview_image"] = preview_file
     if geometry_stats:
@@ -86,7 +85,6 @@ def write_manifest(package_path, asset_name, primitive, scale,
 def create_zip_archive(package_path):
     """
     Creates a zip archive of the package folder.
-    The zip lives alongside the folder in the parent directory.
     """
     package_path = os.path.abspath(package_path)
     parent_dir = os.path.dirname(package_path)
@@ -94,7 +92,6 @@ def create_zip_archive(package_path):
     zip_filename = f"{package_name}.zip"
     zip_path = os.path.join(parent_dir, zip_filename)
     
-    # Small grace period for OS to flush files
     time.sleep(0.5)
     
     try:
@@ -106,10 +103,6 @@ def create_zip_archive(package_path):
                     arcname = os.path.relpath(file_path, package_path)
                     zipf.write(file_path, arcname)
                     files_found.append(arcname)
-            if not files_found:
-                print(f"Forge: WARNING - ZIP folder appears empty: {package_path}")
-            else:
-                print(f"Forge: Zipped {len(files_found)} files: {', '.join(files_found)}")
         return zip_filename
     except Exception as e:
         print(f"Forge: WARNING - Could not create zip archive: {e}")
@@ -139,7 +132,6 @@ def update_global_registry(output_root, asset_info):
     Upserts an asset entry into the global registry.json using a logical key.
     """
     registry_path = os.path.join(output_root, "registry.json")
-    
     registry = {"last_updated": None, "assets": []}
     if os.path.exists(registry_path):
         try:
@@ -179,3 +171,81 @@ def update_global_registry(output_root, asset_info):
     except Exception as e:
         print(f"Forge: WARNING - Could not update global registry: {e}")
         return None
+
+def prune_stale_assets(output_root, dry_run=False):
+    """
+    Safely removes stale asset folders and zip archives.
+    """
+    registry_path = os.path.join(output_root, "registry.json")
+    if not os.path.exists(registry_path):
+        raise FileNotFoundError(f"Registry not found at {registry_path}. Pruning requires a valid registry.")
+
+    try:
+        with open(registry_path, 'r') as f:
+            registry = json.load(f)
+    except Exception as e:
+        raise RuntimeError(f"Could not read registry: {e}")
+
+    # 1. Collect all referenced paths (Normalize to just the top-level name in output_root)
+    referenced_items = set()
+    for a in registry.get("assets", []):
+        for field in ["package_path", "archive_path", "entry_point", "preview_path"]:
+            val = a.get(field)
+            if val:
+                # Get the first part of the path (the folder or the zip file name)
+                top_level = val.split(os.sep)[0]
+                referenced_items.add(top_level)
+
+    # 2. Identify stale items
+    all_on_disk = os.listdir(output_root)
+    to_remove = []
+    protected = []
+    
+    permanent = ["registry.json", "run_report.json"]
+
+    for item in all_on_disk:
+        if item.startswith(".") or item in permanent or item in referenced_items:
+            protected.append(item)
+            continue
+            
+        item_path = os.path.join(output_root, item)
+        if os.path.isdir(item_path) or item.endswith(".zip"):
+            to_remove.append(item)
+        else:
+            protected.append(item)
+
+    # 3. Output logic
+    if dry_run:
+        print("\n--- PRUNE DRY RUN ---")
+        print("Protected items (preserved):")
+        for item in sorted(protected):
+            print(f" [KEEP] {item}")
+        print("\nStale items (marked for removal):")
+        for item in sorted(to_remove):
+            print(f" [REMOVE] {item}")
+    
+    removed_folders = 0
+    removed_zips = 0
+    errors = 0
+
+    if not dry_run:
+        for item in to_remove:
+            item_path = os.path.join(output_root, item)
+            try:
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                    removed_folders += 1
+                else:
+                    os.remove(item_path)
+                    removed_zips += 1
+            except Exception as e:
+                print(f"Forge: Error pruning {item}: {e}")
+                errors += 1
+
+    return {
+        "found": len(to_remove),
+        "removed_folders": removed_folders,
+        "removed_zips": removed_zips,
+        "protected_count": len(protected),
+        "errors": errors
+    }
