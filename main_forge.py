@@ -4,6 +4,7 @@ import sys
 import json
 import re
 import datetime
+import uuid
 from forge.generator import generate_bpy_script
 from forge.packager import (
     prepare_package_dir, write_manifest, write_run_report, 
@@ -31,6 +32,11 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     fmt = options.get("format", "obj")
     category = options.get("category")
     
+    # Material parameters
+    base_color = options.get("base_color", (0.8, 0.8, 0.8))
+    metallic = float(options.get("metallic", 0.0))
+    roughness = float(options.get("roughness", 0.5))
+    
     python_code = options.get("python_code")
     experimental_mode = options.get("experimental_mode", False)
     
@@ -57,6 +63,12 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         return False, result_info["error"], result_info
     if not (0 <= subdivisions <= 5): 
         result_info["error"] = "Subdivisions must be between 0 and 5"
+        return False, result_info["error"], result_info
+    if not (0.0 <= metallic <= 1.0):
+        result_info["error"] = "Metallic must be between 0.0 and 1.0"
+        return False, result_info["error"], result_info
+    if not (0.0 <= roughness <= 1.0):
+        result_info["error"] = "Roughness must be between 0.0 and 1.0"
         return False, result_info["error"], result_info
 
     # Sandbox Snippet Validation
@@ -94,6 +106,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     bpy_script = generate_bpy_script(
         name, primitive, scale_tuple, shading=shading,
         bevel=bevel, subdivisions=subdivisions, auto_smooth=auto_smooth,
+        base_color=base_color, metallic=metallic, roughness=roughness,
         output_path=asset_path, 
         preview_path=preview_path,
         export_format=fmt,
@@ -181,7 +194,8 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             geometry_stats=geometry_stats,
             parametric_options={
                 "bevel": bevel, "subdivisions": subdivisions, 
-                "auto_smooth": auto_smooth, "shading": shading
+                "auto_smooth": auto_smooth, "shading": shading,
+                "base_color": base_color, "metallic": metallic, "roughness": roughness
             },
             source_type="agent_bpy_sandbox" if python_code else "primitive",
             experimental_mode=experimental_mode,
@@ -191,7 +205,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             archive_file=archive_name_placeholder,
             validation_results=validation_report
         )
-        print(f"Forge: Manifest written to {manifest_path}")
+        print(f"Forge: Manifest written to {package_path}/manifest.json")
         
         # --- Update Global Registry ---
         registry_info = {
@@ -234,6 +248,7 @@ def main():
     parser.add_argument("--sync-name", type=str, help="Limit sync to a specific asset name")
     parser.add_argument("--sync-category", type=str, help="Limit sync to a specific category")
     
+    # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
     parser.add_argument("--scale", type=str, help="Comma-separated scale (x,y,z)")
@@ -244,6 +259,11 @@ def main():
     parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Export format")
     parser.add_argument("--category", type=str, help="Asset category")
     parser.add_argument("--zip", action="store_true", help="Create a ZIP archive of the package")
+    
+    # PBR Material Arguments
+    parser.add_argument("--color", type=str, help="Base color (Hex string like #FFD700)")
+    parser.add_argument("--metallic", type=float, help="Metallic value (0.0-1.0)")
+    parser.add_argument("--roughness", type=float, help="Roughness value (0.0-1.0)")
     
     parser.add_argument("--author", type=str, help="Asset author name")
     parser.add_argument("--output-dir", type=str, help="Output root directory")
@@ -337,6 +357,7 @@ def main():
             print(f"Error: Failed to parse request file JSON: {e}")
             sys.exit(1)
     else:
+        # PBR conversion for RGB lists in CLI? No, simple string for now.
         requests = [{
             "asset": {
                 "name": args.name or "prop",
@@ -351,6 +372,9 @@ def main():
                 "format": args.format or "obj",
                 "category": args.category,
                 "zip": args.zip,
+                "base_color": args.color or "#CCCCCC",
+                "metallic": args.metallic or 0.0,
+                "roughness": args.roughness or 0.5,
                 "author": args.author or "MStorm Forge",
                 "output_dir": output_dir_final,
                 "tags": [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else [],
@@ -402,6 +426,9 @@ def main():
             if args.format is not None: options_data["format"] = args.format
             if args.category is not None: options_data["category"] = args.category
             if args.zip is not None: options_data["zip"] = args.zip
+            if args.color is not None: options_data["base_color"] = args.color
+            if args.metallic is not None: options_data["metallic"] = args.metallic
+            if args.roughness is not None: options_data["roughness"] = args.roughness
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 
@@ -414,7 +441,7 @@ def main():
     fail_count = total - success_count
 
     run_metadata = {
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat() + "Z",
         "command": full_command,
         "output_dir": output_dir_final,
         "total_count": total,

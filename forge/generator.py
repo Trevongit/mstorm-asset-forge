@@ -3,12 +3,13 @@ import os
 
 def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), 
                         shading="flat", bevel=0.0, subdivisions=0, 
-                        auto_smooth=False, output_path="asset.obj", 
-                        preview_path=None, export_format="obj",
-                        python_code=None):
+                        auto_smooth=False, base_color=(0.8, 0.8, 0.8), 
+                        metallic=0.0, roughness=0.5,
+                        output_path="asset.obj", preview_path=None, 
+                        export_format="obj", python_code=None):
     """
     Generates a minimal Blender Python script to create geometry, 
-    apply modifiers, render an adaptive preview, and export it as OBJ or GLB.
+    apply PBR materials and modifiers, render a preview, and export.
     """
     # Map primitives to Blender ops
     primitive_map = {
@@ -24,18 +25,29 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
     
     shading_cmd = "bpy.ops.object.shade_smooth()" if shading.lower() == "smooth" else "bpy.ops.object.shade_flat()"
 
-    # Geometry Generation Block - no leading indent here
+    # Geometry Generation Block
     if python_code:
         geo_gen = python_code
     else:
         geo_gen = f"{op}(location=(0, 0, 0))\nobj = bpy.context.active_object"
 
-    # We use a simple concatenation/formatting to avoid complex dedent logic
+    # Fix: Ensure base_color is properly quoted if string
+    color_repr = f"'{base_color}'" if isinstance(base_color, str) else str(base_color)
+
     script = f"""import bpy
 import os
 import json
 import math
 from mathutils import Vector
+
+def hex_to_rgb(hex_str):
+    hex_str = hex_str.lstrip('#')
+    if len(hex_str) == 3:
+        hex_str = ''.join([c*2 for c in hex_str])
+    r = int(hex_str[0:2], 16) / 255.0
+    g = int(hex_str[2:4], 16) / 255.0
+    b = int(hex_str[4:6], 16) / 255.0
+    return (r, g, b, 1.0)
 
 # Clear existing objects
 bpy.ops.object.select_all(action='SELECT')
@@ -50,6 +62,28 @@ obj.name = "{asset_name}"
 # Apply scale
 obj.scale = ({scale[0]}, {scale[1]}, {scale[2]})
 bpy.ops.object.transform_apply(scale=True)
+
+# --- Material Setup (PBR) ---
+mat = bpy.data.materials.new(name="ForgeMaterial")
+mat.use_nodes = True
+nodes = mat.node_tree.nodes
+principled = nodes.get("Principled BSDF")
+
+if principled:
+    # Set Base Color
+    color_val = {color_repr}
+    if isinstance(color_val, str):
+        principled.inputs['Base Color'].default_value = hex_to_rgb(color_val)
+    else:
+        principled.inputs['Base Color'].default_value = (color_val[0], color_val[1], color_val[2], 1.0)
+    
+    principled.inputs['Metallic'].default_value = {metallic}
+    principled.inputs['Roughness'].default_value = {roughness}
+
+if obj.data.materials:
+    obj.data.materials[0] = mat
+else:
+    obj.data.materials.append(mat)
 
 # --- Apply Modifiers ---
 if {bevel} > 0:
@@ -69,7 +103,7 @@ if {"True" if auto_smooth else "False"}:
     obj.data.use_auto_smooth = True
     obj.data.auto_smooth_angle = 0.523599 # 30 degrees
 
-# --- Geometry Stats Extraction (Evaluated) ---
+# --- Geometry Stats Extraction ---
 depsgraph = bpy.context.evaluated_depsgraph_get()
 obj_eval = obj.evaluated_get(depsgraph)
 mesh_eval = obj_eval.to_mesh()
@@ -79,17 +113,16 @@ f_count = len(mesh_eval.polygons)
 stats = {{"vertex_count": v_count, "face_count": f_count}}
 print("FORGE_STATS: " + json.dumps(stats))
 
-# --- Preview Rendering (Adaptive) ---
+# --- Preview Rendering ---
 if "{abs_preview_path}":
     print("Blender: Setting up adaptive preview render...")
-    
     bbox = [obj_eval.matrix_world @ Vector(corner) for corner in obj_eval.bound_box]
     center = sum(bbox, Vector()) / 8
     dims = obj_eval.dimensions
     max_dim = max(dims.x, dims.y, dims.z, 0.1)
     
-    cam_dist = max_dim * 3.0
-    cam_loc = center + Vector((cam_dist, -cam_dist, cam_dist * 0.7))
+    cam_dist = max_dim * 3.5
+    cam_loc = center + Vector((cam_dist, -cam_dist, cam_dist * 0.8))
     
     bpy.ops.object.camera_add(location=cam_loc)
     cam = bpy.context.active_object
@@ -106,7 +139,6 @@ if "{abs_preview_path}":
     bpy.context.scene.render.filepath = "{abs_preview_path}"
     bpy.context.scene.render.resolution_x = 512
     bpy.context.scene.render.resolution_y = 512
-    bpy.context.scene.render.resolution_percentage = 100
     
     try:
         bpy.ops.render.render(write_still=True)
@@ -114,7 +146,6 @@ if "{abs_preview_path}":
     except Exception as e:
         print("Blender: Preview render FAILED: " + str(e))
 
-# Cleanup mesh
 obj_eval.to_mesh_clear()
 
 # --- Export ---

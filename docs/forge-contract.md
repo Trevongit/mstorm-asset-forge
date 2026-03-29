@@ -26,6 +26,9 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
     "category": "string (Optional, e.g., 'furniture')",
     "zip": "boolean (Optional, default false)",
     "shading": "flat|smooth (Optional, default 'flat')",
+    "base_color": "string (Hex #RRGGBB) | [r, g, b] (Optional, default #CCCCCC)",
+    "metallic": "float (0.0 - 1.0, Optional, default 0.0)",
+    "roughness": "float (0.0 - 1.0, Optional, default 0.5)",
     "bevel": "float (Optional, non-negative, default 0.0)",
     "subdivisions": "int (Optional, 0-5, default 0)",
     "auto_smooth": "boolean (Optional, default false)",
@@ -57,26 +60,6 @@ outputs/
     └── preview.png     # Rendered preview (Optional, non-fatal)
 ```
 
-### Global Registry Schema (`registry.json`)
-```json
-{
-  "last_updated": "ISO-8601-UTC",
-  "assets": [
-    {
-      "asset_id": "uuid-v4",
-      "name": "asset_name",
-      "category": "string | null",
-      "format": "obj|glb",
-      "entry_point": "package_folder/asset.ext",
-      "preview_path": "package_folder/preview.png",
-      "archive_path": "package_name.zip (Optional)",
-      "package_path": "package_folder",
-      "timestamp": "ISO-8601-UTC"
-    }
-  ]
-}
-```
-
 ### Manifest Schema (`manifest.json`)
 ```json
 {
@@ -85,33 +68,25 @@ outputs/
   "type": "static_prop",
   "format": "obj|glb",
   "entry_point": "asset.ext",
-  "archive_file": "package_name.zip (Optional)",
   "version": "1.0.0",
   "author": "author_name",
   "generator": "MStorm Asset Forge v0.1",
   "timestamp": "ISO-8601-UTC",
-  "provenance": {
-    "source_type": "primitive | agent_bpy_sandbox",
-    "creation_command": "reproducible_command_string",
-    "experimental_mode": boolean (Optional),
-    "provider": "string (Optional)",
-    "model": "string (Optional)"
-  },
   "metadata": {
     "primitive": "primitive_type",
     "scale": [x, y, z],
     "unit_system": "metric",
-    "unit_scale": "1.0 unit = 1.0 meter",
     "is_rigged": false,
     "parametric_options": {
+        "base_color": "string|list",
+        "metallic": float,
+        "roughness": float,
         "bevel": float,
         "subdivisions": int,
         "auto_smooth": boolean,
         "shading": "flat|smooth"
     }
-  },
-  "tags": ["base_tags", "user_tags", "experimental (if sandbox)"],
-  "preview_image": "preview.png (Optional)"
+  }
 }
 ```
 
@@ -119,5 +94,8 @@ outputs/
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
-*   **ZIP Packaging:** When `--zip` is enabled, the Forge creates a compressed archive of the asset package folder. This archive is stored at the root of the output directory, alongside the unpacked folder.
-*   **Global Registry:** Every successful generation run automatically updates `outputs/registry.json`. The registry uses a logical identity key (`name|category|format`) to ensure it only tracks the most recent package for each asset identity. Older package folders are preserved on disk but removed from the registry index when a newer version is generated.
+*   **PBR Materials:** The Forge uses a standard **Blender Principled BSDF** material.
+    *   **GLB Path:** Supports full PBR (Color, Metal, Rough).
+    *   **OBJ Path:** Primarily supports Color (Diffuse); Metallic and Roughness may not be accurately represented in MTL.
+*   **Experimental Sandbox Mode:** Triggered via `--prompt-to-bpy`. Allows LLM-generated code snippets for geometry generation only.
+*   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.
