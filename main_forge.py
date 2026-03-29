@@ -44,6 +44,8 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     alpha = float(options.get("alpha", 1.0))
     mat_name = options.get("material_name", "ForgeMaterial")
     
+    val_profile = options.get("validation_profile", "standard")
+    
     python_code = options.get("python_code")
     experimental_mode = options.get("experimental_mode", False)
     
@@ -159,6 +161,9 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             try:
                 geometry_stats = json.loads(match.group(1))
                 print(f"Forge: Extracted stats - Vertices: {geometry_stats.get('vertex_count')}, Faces: {geometry_stats.get('face_count')}")
+                dims = geometry_stats.get("dimensions")
+                if dims:
+                    print(f"Forge: Dimensions (m): {dims['x']} x {dims['y']} x {dims['z']}")
             except Exception: pass
 
         final_preview = None
@@ -227,18 +232,28 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         )
         print(f"Forge: Manifest written to {package_path}/manifest.json")
         
-        # --- Update Global Registry ---
+        # --- Update Global Registry (Enriched) ---
         registry_info = {
             "asset_id": asset_id,
             "name": name,
             "category": category,
             "format": fmt,
+            "package_path": rel_package_path,
             "entry_point": os.path.join(rel_package_path, asset_file),
             "preview_path": result_info["preview_path"],
             "archive_path": archive_file,
-            "package_path": rel_package_path,
             "timestamp": timestamp,
-            "validation_success": val_success
+            "validation_success": val_success,
+            "validation_profile": val_profile,
+            "dimensions": geometry_stats.get("dimensions") if geometry_stats else None,
+            "material_summary": {
+                "base_color": base_color,
+                "metallic": metallic,
+                "roughness": roughness,
+                "alpha": alpha,
+                "emissive": emission_strength > 0
+            },
+            "preset": preset_name
         }
         update_global_registry(output_dir, registry_info)
         
@@ -275,6 +290,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output explorer results as JSON")
     parser.add_argument("--category", type=str, help="Filter list by category")
     parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Filter list by format")
+    parser.add_argument("--profile", type=str, choices=["mobile", "standard", "high_fidelity"], help="Filter list by validation profile")
     
     # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
@@ -315,6 +331,10 @@ def main():
             format_filter=args.format,
             sort_by=args.sort
         )
+        # Handle --profile filter locally for now if not in packager.py
+        if args.profile:
+            assets = [a for a in assets if a.get("validation_profile") == args.profile]
+
         if args.json:
             print(json.dumps(assets, indent=2))
         else:
@@ -324,7 +344,11 @@ def main():
             for a in assets:
                 cat = f" [{a.get('category')}]" if a.get('category') else ""
                 val_status = "OK" if a.get('validation_success') else "WARN"
-                print(f" - {a.get('name')}{cat} ({a.get('format')}) [{val_status}] -> {a.get('package_path')}")
+                profile = f" | {a.get('validation_profile', 'std')}"
+                dims = a.get('dimensions')
+                dim_str = f" | {dims['x']}x{dims['y']}x{dims['z']}m" if dims else ""
+                preset = f" | {a.get('preset')}" if a.get('preset') else ""
+                print(f" - {a.get('name')}{cat} ({a.get('format')}) [{val_status}{profile}{preset}{dim_str}] -> {a.get('package_path')}")
         sys.exit(0)
 
     if args.info:

@@ -22,6 +22,7 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
     "scale": [float, float, float] (Optional, default [1.0, 1.0, 1.0])
   },
   "options": {
+    "preset": "chair_basic|dining_table_basic|shelf_simple|crate_stackable (Optional)",
     "format": "obj|glb (Optional, default 'obj')",
     "category": "string (Optional, e.g., 'furniture')",
     "zip": "boolean (Optional, default false)",
@@ -50,36 +51,37 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
 
 ## 3. Output Contract (Package Structure)
 
-The Forge produces a timestamped directory containing the following artifacts:
+The Forge produces a timestamped directory and updates a global library registry.
 
 ### Package Folder Tree
 ```text
 outputs/
-├── registry.json       # Global library index (Latest-only upsert)
+├── registry.json       # Enriched Library Index (Discovery Layer)
 ├── <package_name>.zip  # Compressed package (if zip=true)
 └── <YYYYMMDD_HHMMSS>_<asset_name>/
     ├── asset.obj       # The 3D model (if format=obj)
     ├── asset.mtl       # Associated material library (if format=obj)
     ├── asset.glb       # The 3D model (if format=glb)
-    ├── manifest.json   # Asset metadata (Required)
+    ├── manifest.json   # Detailed Asset Metadata (Truth Layer)
     └── preview.png     # Rendered preview (Optional, non-fatal)
 ```
+
+### Registry Responsibilities
+The `registry.json` is the **discovery layer** for external tools (e.g., MStorm Studio plugins).
+*   **Enriched Fields:** `validation_profile`, `dimensions` (WxDxH), `material_summary` (Color/Metal/Rough/Emit), and `preset`.
+*   **Rule:** Keep it lightweight. Programmatic consumers should scan the registry first, only reading individual `manifest.json` files for deep detail (e.g., provenance, raw face counts).
 
 ---
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
-*   **Modular Props:** 
-    *   `table`: Flat top with four cylindrical legs.
-    *   `stool`: Rounded seat with four cylindrical legs.
-    *   `crate`: Solid box with frame-ready topology.
+*   **Modular Props & Presets:** 
+    *   Presets (e.g., `chair_basic`) are deterministic recipes that resolve to compound assemblies.
     *   *Scale:* Applied to the entire assembly after grouping.
 *   **Validation Profiles:**
     *   `mobile`: 10k faces / 10MB limit. GLB preferred.
     *   `standard`: 50k faces / 50MB limit.
     *   `high_fidelity`: 250k faces / 250MB limit.
-    *   *Note:* Profile violations are currently emitted as **warnings** in the manifest and run report, while missing artifacts remain **hard failures**.
-*   **PBR Materials:** The Forge uses a standard **Blender Principled BSDF** material.
-    *   **GLB Path:** Supports full PBR (Color, Alpha, Metal, Rough, Emission). This is the preferred handoff path.
-    *   **OBJ Path:** Primarily supports Color (Diffuse); Emission and Transparency (Alpha) may have limited fidelity in standard MTL.
+*   **PBR Materials:** Standard Blender Principled BSDF.
+    *   **GLB Path:** Full PBR support (Color, Alpha, Metal, Rough, Emission).
 *   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.

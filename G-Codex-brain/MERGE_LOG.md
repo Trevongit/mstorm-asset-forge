@@ -35,3 +35,4 @@
 | 2026-03-29 | Phase 4 Final: docs & Phase 4 closeout | `20440e2` | GCagent |
 | 2026-03-30 | Phase 6 Slice 1: Asset Presets / Archetypes | `dd926aa924d92007be7c63f1ec743e8287ba2b38` | GCagent |
 | 2026-03-30 | Phase 6 Slice 2: Validation Profiles | `be46997f5ff0b11e06867aad83db6578eba09226` | GCagent |
+| 2026-03-30 | Phase 6 Slice 3: Registry Enrichment | `380aa6388f81ed6c38d0d0d75785320674ce3f88` | GCagent |

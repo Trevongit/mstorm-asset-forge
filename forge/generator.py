@@ -306,23 +306,37 @@ if {"True" if auto_smooth else "False"}:
     obj.data.use_auto_smooth = True
     obj.data.auto_smooth_angle = 0.523599 # 30 degrees
 
-# --- Geometry Stats Extraction ---
+# --- Geometry Stats & Dimensions ---
 depsgraph = bpy.context.evaluated_depsgraph_get()
 obj_eval = obj.evaluated_get(depsgraph)
 mesh_eval = obj_eval.to_mesh()
 
 v_count = len(mesh_eval.vertices)
 f_count = len(mesh_eval.polygons)
-stats = {{"vertex_count": v_count, "face_count": f_count}}
+
+# Calculate world-space dimensions
+bbox = [obj_eval.matrix_world @ Vector(corner) for corner in obj_eval.bound_box]
+min_coords = Vector((min(c.x for c in bbox), min(c.y for c in bbox), min(c.z for c in bbox)))
+max_coords = Vector((max(c.x for c in bbox), max(c.y for c in bbox), max(c.z for c in bbox)))
+dims = max_coords - min_coords
+
+stats = {{
+    "vertex_count": v_count, 
+    "face_count": f_count,
+    "dimensions": {{
+        "x": round(dims.x, 3),
+        "y": round(dims.y, 3),
+        "z": round(dims.z, 3)
+    }}
+}}
 print("FORGE_STATS: " + json.dumps(stats))
 
 # --- Preview Rendering ---
 if "{abs_preview_path}":
     print("Blender: Setting up adaptive preview render...")
-    bbox = [obj_eval.matrix_world @ Vector(corner) for corner in obj_eval.bound_box]
     center = sum(bbox, Vector()) / 8
-    dims = obj_eval.dimensions
-    max_dim = max(dims.x, dims.y, dims.z, 0.1)
+    dims_v = obj_eval.dimensions
+    max_dim = max(dims_v.x, dims_v.y, dims_v.z, 0.1)
     
     cam_dist = max_dim * 3.5
     cam_loc = center + Vector((cam_dist, -cam_dist, cam_dist * 0.8))
