@@ -4,32 +4,37 @@
 The **MStorm Asset Forge** is a local-first bridge for generating and assembling 3D assets for **MStorm Studio 2026**.
 
 ## Current Phase
-**MVP Phase 4: Production Handoff & Validation (COMPLETE).**
+**MVP Phase 5: Advanced Deterministic Features (Active).**
 
 ## Status Summary
-The Forge is now a **hardened, production-usable local asset library pipeline**. It not only generates and packages assets but also validates their integrity and provides a project-aware sync mechanism for MStorm Studio handoff.
+The Forge is a **hardened, production-ready bridge** for local asset generation. It is fully aligned with the `mstorm-asset-forge` identity and provides a clean transition for future agentic development.
 
 ## Feature Matrix
 
 ### 1. Stable Production Features
-*   **Artifact Integrity**: Mandatory post-Blender verification of entry-point existence and non-zero size.
-*   **Asset Validation**: Automatic checks for poly-count thresholds (>50k faces) and file size (>50MB).
-*   **Library Indexing**: Persistent logical latest-asset `registry.json` and session-wide `run_report.json`.
-*   **Project Sync**: Powerful **`--sync <target_path>`** utility with name and category filtering.
-*   **ZIP Packaging**: Optional single-file distributable archives (`--zip`).
-*   **Maintenance**: Safety-first **`--prune`** utility to manage stale historical packages.
-*   **Multi-Format**: Fully verified OBJ/MTL and GLB/glTF export paths.
-*   **Visuals**: Adaptive, bounding-box-aware `preview.png` for every asset.
+- **Deterministic Pipeline:** Structured JSON/CLI requests -> Blender -> Package.
+- **Multi-Format:** Full support for **GLB/glTF** and **OBJ/MTL**.
+- **Library Management:** logical latest-asset `registry.json`, `--list`, `--info`, and `--prune`.
+- **Handoff Tools:** `--sync <target>` utility for external project integration.
+- **Integrity & Validation:** Post-generation checks for file existence, size, and polycount.
+- **PBR Materials:** base_color (hex/rgb), metallic, and roughness support.
+- **Visuals:** Adaptive bounding-box aware `preview.png` generation.
 
 ### 2. Experimental Features
-*   **LLM Batch Architect**: Single prompts can now drive multi-item batch generation (`--llm-batch`).
-*   **Prompt-to-BPY Sandbox**: Safe code injection for custom geometry creation (`--prompt-to-bpy`).
+- **LLM Batch Architect:** Multi-item generation from a single prompt (`--llm-batch`).
+- **Prompt-to-BPY Sandbox:** Safe code injection for custom geometry (`--prompt-to-bpy`).
 
-### 3. Known Limitations
-*   **Static Props Only**: Focus remains on non-rigged, non-animated items.
-*   **Manual Dependency**: GLB requires local `numpy` (project-local `.venv` supported).
+### 3. Engineering Reference
+- **Roadmap:** [docs/engineering-roadmap.md](../docs/engineering-roadmap.md)
+- **Continuation:** [docs/development-continuation-guide.md](../docs/development-continuation-guide.md)
+- **Contract:** [docs/forge-contract.md](../docs/forge-contract.md)
+
+## Next 3 Tasks
+1.  **Modular Assembly:** Support compound props like `table`, `shelf` (Phase 5 Slice 3).
+2.  **Rich Explorer:** Add sorting and JSON output to `--list` (Phase 5 Slice 4).
+3.  **Advanced Materials:** Implement material presets (Phase 5 Slice 5).
 
 ## Session Anchor
-*   **Active Contract**: MVP v0.1 (Hardened).
-*   **Baseline Formats**: GLB, OBJ.
-*   **Main Entry**: `main_forge.py`.
+- **Repo:** `mstorm-asset-forge` (GitHub Trevongit/mstorm-asset-forge)
+- **Active Contract:** MVP v0.1 (Hardened).
+- **Baseline Format:** GLB.
