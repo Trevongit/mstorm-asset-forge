@@ -152,10 +152,12 @@ def execute_headless_blender(code: str, timeout: int = 300, blend_path: Optional
             )
             execution_time = time.time() - start_time
             
+            # Combine stdout and stderr for more robust parsing
+            output = (result.stdout or "") + "\n" + (result.stderr or "")
+            output = output.strip()
+            
             # Parse the result
             if result.returncode == 0:
-                # Success
-                output = result.stdout.strip()
                 return {
                     "status": "success",
                     "message": f"Headless execution completed in {execution_time:.2f}s",

@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import json
+import re
 from forge.generator import generate_bpy_script
 from forge.packager import prepare_package_dir, write_manifest
 from forge.agent import interpret_prompt
@@ -54,6 +55,22 @@ def forge_item(asset_params, options, global_command, dry_run=False):
     
     # 3. Handle Result and Finalize Manifest
     if result.get("status") == "success":
+        print(f"Forge: Blender execution SUCCESS.")
+        
+        # --- Stats Extraction ---
+        geometry_stats = None
+        blender_stdout = result.get("result", {}).get("result", "")
+        match = re.search(r"FORGE_STATS: ({.*})", blender_stdout)
+        if match:
+            try:
+                geometry_stats = json.loads(match.group(1))
+                print(f"Forge: Extracted stats - Vertices: {geometry_stats.get('vertex_count')}, Faces: {geometry_stats.get('face_count')}")
+            except Exception as e:
+                print(f"Forge: WARNING - Could not parse geometry stats: {e}")
+        else:
+            print(f"Forge: WARNING - No geometry stats found in Blender output.")
+
+        # --- Preview Check ---
         final_preview = None
         if preview_path and os.path.exists(preview_path):
             final_preview = preview_file
@@ -64,10 +81,11 @@ def forge_item(asset_params, options, global_command, dry_run=False):
             tags=tags_list,
             preview_file=final_preview,
             author=author,
-            creation_command=global_command
+            creation_command=global_command,
+            geometry_stats=geometry_stats
         )
         print(f"Forge: Manifest written to {manifest_path}")
-        print(f"Forge: Successfully packaged '{name}'")
+        print(f"Forge: Successfully packaged '{name}' in {package_path}")
         return True, "Success"
     else:
         err_msg = result.get('message', 'Unknown Blender error')
@@ -77,7 +95,7 @@ def forge_item(asset_params, options, global_command, dry_run=False):
 def main():
     parser = argparse.ArgumentParser(description="MStorm Asset Forge - OBJ Baseline Pipeline")
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
-    parser.add_argument("-p", "--prompt", type=str, help="Natural language request (e.g., 'a smooth tall cylinder')")
+    parser.add_argument("-p", "--prompt", type=str, help="Natural language request")
     parser.add_argument("--dry-run", action="store_true", help="Interpret and validate without running Blender")
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
@@ -95,37 +113,26 @@ def main():
 
     # 1. Resolve Requests
     if args.prompt:
-        # Natural Language Mode
         print(f"Agent: Interpreting prompt: '{args.prompt}'...")
         req, msg = interpret_prompt(args.prompt)
         if not req:
             print(f"Agent Error: {msg}")
             sys.exit(1)
-        
         print(f"Agent: Success.")
         print(json.dumps(req, indent=2))
         requests = [req]
-        
     elif args.file:
-        # JSON File Mode
         if not os.path.exists(args.file):
             print(f"Error: Request file not found: {args.file}")
             sys.exit(1)
         try:
             with open(args.file, 'r') as f:
                 data = json.load(f)
-            if isinstance(data, list):
-                requests = data
-            elif isinstance(data, dict):
-                requests = [data]
-            else:
-                print("Error: Invalid JSON root. Must be an object or a list.")
-                sys.exit(1)
+            requests = data if isinstance(data, list) else [data]
         except json.JSONDecodeError as e:
             print(f"Error: Failed to parse request file JSON: {e}")
             sys.exit(1)
     else:
-        # Pure CLI Mode
         requests = [{
             "asset": {
                 "name": args.name or "prop",
@@ -155,7 +162,6 @@ def main():
         asset_data = req.get("asset", {})
         options_data = req.get("options", {})
 
-        # Validation for non-CLI sourced items
         if args.file or args.prompt:
             missing = []
             if "name" not in asset_data: missing.append("asset.name")
@@ -165,12 +171,10 @@ def main():
                 results.append((False, asset_data.get("name", f"item_{i}"), "Missing fields"))
                 continue
 
-        # Global CLI Overrides
         if args.output_dir is not None: options_data["output_dir"] = args.output_dir
         if args.no_preview is not None: options_data["no_preview"] = args.no_preview
         if args.author is not None: options_data["author"] = args.author
         
-        # Single-item explicit overrides
         if not is_batch:
             if args.name is not None: asset_data["name"] = args.name
             if args.primitive is not None: asset_data["primitive"] = args.primitive

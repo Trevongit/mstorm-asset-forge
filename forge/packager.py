@@ -15,7 +15,7 @@ def prepare_package_dir(output_root, asset_name):
 
 def write_manifest(package_path, asset_name, primitive, scale, 
                    tags=None, preview_file=None, author="MStorm Forge", 
-                   creation_command=None, version="1.0.0"):
+                   creation_command=None, geometry_stats=None, version="1.0.0"):
     """
     Writes a manifest.json file to the package directory.
     """
@@ -25,7 +25,7 @@ def write_manifest(package_path, asset_name, primitive, scale,
     # 1. Build base tags
     final_tags = ["generated", "mvp", "prop", primitive.lower()]
     
-    # 2. Add user-provided tags with deduplication
+    # 2. Add user-provided tags
     if tags:
         for t in tags:
             t_clean = t.strip().lower()
@@ -57,6 +57,9 @@ def write_manifest(package_path, asset_name, primitive, scale,
     
     if preview_file:
         manifest["preview_image"] = preview_file
+        
+    if geometry_stats:
+        manifest["geometry_stats"] = geometry_stats
         
     manifest_path = os.path.join(package_path, "manifest.json")
     with open(manifest_path, 'w') as f:
