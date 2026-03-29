@@ -22,7 +22,7 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
     "scale": [float, float, float] (Optional, default [1.0, 1.0, 1.0])
   },
   "options": {
-    "preset": "chair_basic|dining_table_basic|shelf_simple|crate_stackable (Optional)",
+    "preset": "chair_basic|chair_dining|bench_basic|cabinet_basic|dining_table_basic|table_round|pillar_square|shelf_simple|crate_stackable|stool_round (Optional)",
     "format": "obj|glb (Optional, default 'obj')",
     "category": "string (Optional, e.g., 'furniture')",
     "zip": "boolean (Optional, default false)",
@@ -76,7 +76,7 @@ The `registry.json` is the **discovery layer** for external tools (e.g., MStorm 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
 *   **Modular Props & Presets:** 
-    *   Presets (e.g., `chair_basic`) are deterministic recipes that resolve to compound assemblies.
+    *   Presets (e.g., `chair_basic`, `cabinet_basic`) are deterministic recipes that resolve to compound assemblies.
     *   *Scale:* Applied to the entire assembly after grouping.
 *   **Validation Profiles:**
     *   `mobile`: 10k faces / 10MB limit. GLB preferred.

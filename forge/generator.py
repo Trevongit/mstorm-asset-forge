@@ -33,6 +33,94 @@ bpy.ops.object.join()
 obj = bpy.context.active_object
 """
     },
+    "chair_dining": {
+        "primitive": "chair",
+        "description": "Slimmer dining chair with taller back",
+        "bpy_code": """
+# Dining Chair Assembly
+# Seat
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.6))
+seat = bpy.context.active_object
+seat.scale = (0.45, 0.45, 0.04)
+
+# Taller Legs
+leg_coords = [(0.38, 0.38, 0.3), (0.38, -0.38, 0.3), (-0.38, 0.38, 0.3), (-0.38, -0.38, 0.3)]
+for lx, ly, lz in leg_coords:
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.02, depth=0.6, location=(lx, ly, lz))
+    bpy.context.active_object.parent = seat
+
+# Tall Slim Backrest
+bpy.ops.mesh.primitive_cube_add(size=1, location=(-0.4, 0, 1.2))
+back = bpy.context.active_object
+back.scale = (0.03, 0.4, 0.7)
+back.parent = seat
+
+bpy.context.view_layer.objects.active = seat
+bpy.ops.object.select_all(action='DESELECT')
+seat.select_set(True)
+for child in seat.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "bench_basic": {
+        "primitive": "bench",
+        "description": "Simple wide bench",
+        "bpy_code": """
+# Bench Assembly
+# Seat
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.45))
+seat = bpy.context.active_object
+seat.scale = (0.4, 1.2, 0.05)
+
+# 4 Legs
+leg_coords = [(0.3, 1.0, 0.225), (0.3, -1.0, 0.225), (-0.3, 1.0, 0.225), (-0.3, -1.0, 0.225)]
+for lx, ly, lz in leg_coords:
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.04, depth=0.45, location=(lx, ly, lz))
+    bpy.context.active_object.parent = seat
+
+bpy.context.view_layer.objects.active = seat
+bpy.ops.object.select_all(action='DESELECT')
+seat.select_set(True)
+for child in seat.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "cabinet_basic": {
+        "primitive": "cabinet",
+        "description": "Simple box cabinet with door detail",
+        "bpy_code": """
+# Cabinet Assembly
+# Main Body
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.5))
+body = bpy.context.active_object
+body.scale = (0.4, 0.8, 1.0)
+
+# Door Insets (Visual suggestion)
+# Left Door
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0.41, 0.19, 0.5))
+door_l = bpy.context.active_object
+door_l.scale = (0.01, 0.35, 0.95)
+door_l.parent = body
+
+# Right Door
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0.41, -0.19, 0.5))
+door_r = bpy.context.active_object
+door_r.scale = (0.01, 0.35, 0.95)
+door_r.parent = body
+
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.select_all(action='DESELECT')
+body.select_set(True)
+for child in body.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
     "dining_table_basic": {
         "primitive": "table",
         "description": "Large dining table",
@@ -51,6 +139,65 @@ bpy.context.view_layer.objects.active = top
 bpy.ops.object.select_all(action='DESELECT')
 top.select_set(True)
 for child in top.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "table_round": {
+        "primitive": "table",
+        "description": "Round table with center pedestal",
+        "bpy_code": """
+# Round Table Assembly
+# Top
+bpy.ops.mesh.primitive_cylinder_add(radius=0.8, depth=0.05, location=(0, 0, 0.75))
+top = bpy.context.active_object
+
+# Center Pedestal
+bpy.ops.mesh.primitive_cylinder_add(radius=0.1, depth=0.7, location=(0, 0, 0.35))
+pedestal = bpy.context.active_object
+pedestal.parent = top
+
+# Base Plate
+bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=0.05, location=(0, 0, 0.025))
+base = bpy.context.active_object
+base.parent = top
+
+bpy.context.view_layer.objects.active = top
+bpy.ops.object.select_all(action='DESELECT')
+top.select_set(True)
+for child in top.children:
+    child.select_set(True)
+bpy.ops.object.join()
+obj = bpy.context.active_object
+"""
+    },
+    "pillar_square": {
+        "primitive": "pillar",
+        "description": "Architectural square pillar",
+        "bpy_code": """
+# Pillar Assembly
+# Base
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.1))
+base = bpy.context.active_object
+base.scale = (0.4, 0.4, 0.1)
+
+# Shaft
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 1.1))
+shaft = bpy.context.active_object
+shaft.scale = (0.3, 0.3, 0.9)
+shaft.parent = base
+
+# Capital
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 2.1))
+capital = bpy.context.active_object
+capital.scale = (0.4, 0.4, 0.1)
+capital.parent = base
+
+bpy.context.view_layer.objects.active = base
+bpy.ops.object.select_all(action='DESELECT')
+base.select_set(True)
+for child in base.children:
     child.select_set(True)
 bpy.ops.object.join()
 obj = bpy.context.active_object
