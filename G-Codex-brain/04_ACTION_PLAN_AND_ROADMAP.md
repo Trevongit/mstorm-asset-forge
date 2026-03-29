@@ -2,17 +2,22 @@
 
 ## Phase 1: Foundation (Completed)
 - [x] **Orchestration:** `main_forge.py` CLI with batch and JSON support.
-- [x] **Automation:** Headless Blender OBJ/MTL/Preview/Stats flow.
-- [x] **Documentation:** Package Contract v0.1 and README pivot.
+- [x] **Automation:** Headless Blender OBJ/Preview/Stats flow.
 - [x] **Agent Skeleton:** Rule-based interpretation and LLM Connector.
-- [x] **Reporting:** Sequential session summary (`run_report.json`).
 
-## Phase 2: Intelligence & Refinement (Next)
-- [ ] **Prompt-to-Code:** Implement local LLM prompting to generate dynamic `bpy` scripts for complex meshes.
-- [ ] **Environment Fix:** Troubleshoot and resolve `_ctypes` issue to restore glTF/GLB support.
-- [ ] **Advanced Framing:** Implement bounding-box-aware camera placement for previews.
-- [ ] **Local LLM Backend:** Add support for local providers like Ollama/LM Studio.
+## Phase 2: Intelligence & Refinement (Completed)
+- [x] **GLB Restoration:** Fixed environment issues to restore glTF support.
+- [x] **Parametric:** Added bevel, subdiv, and auto-smooth to contract.
+- [x] **Framing:** Implemented adaptive bounding-box camera placement.
+- [x] **Sandbox:** Added experimental prompt-to-bpy mode with safety validator.
 
-## Phase 3: MStorm Integration
-- [ ] Automated asset indexing for MStorm Studio 2026.
-- [ ] Self-critique loop via visual feedback.
+## Phase 3: Consumer Integration (Completed)
+- [x] **Registry:** Persistent logical latest-asset library index (`registry.json`).
+- [x] **Packaging:** Added optional ZIP archive support for distributable assets.
+- [x] **Library Management:** Added `--prune` utility for historical cleanup.
+- [x] **Entry Points:** Standardized `entry_point` in manifest for consumers.
+
+## Phase 4: Production Handoff (Next)
+- [ ] **Asset Validation:** Add a tool to verify GLB/OBJ files against MStorm constraints.
+- [ ] **Batch Generator:** Allow the LLM to generate complex multi-item batch request files.
+- [ ] **Studio Bridge:** Export helper to copy assets directly into an MStorm project path.

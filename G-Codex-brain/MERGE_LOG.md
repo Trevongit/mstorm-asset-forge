@@ -21,3 +21,8 @@
 | 2026-03-29 | Phase 2 Slice 3: Adaptive Framing | `7b6d182` | GCagent |
 | 2026-03-29 | Phase 2 Slice 4: glTF/GLB Restoration | `baba674` | GCagent |
 | 2026-03-29 | Phase 2 Slice 5: Sandbox & Model Defaults | `017ded9` | GCagent |
+| 2026-03-29 | Phase 2 Cleanup: ignore .venv & reconcile | `e4e21f9` | GCagent |
+| 2026-03-29 | Phase 3 Slice 1: Global Registry & entry points | `d77236a` | GCagent |
+| 2026-03-29 | Phase 3 Slice 1b: Logical Latest-Asset Registry | `088ec1a` | GCagent |
+| 2026-03-29 | Phase 3 Slice 2: ZIP Packaging Support | `3aa6cac` | GCagent |
+| 2026-03-29 | Phase 3 Slice 3: Asset Prune Utility | `7829d34` | GCagent |
