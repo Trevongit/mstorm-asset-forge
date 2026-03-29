@@ -248,3 +248,91 @@ def prune_stale_assets(output_root, dry_run=False):
         "protected_count": len(protected),
         "errors": errors
     }
+
+def sync_assets_to_project(output_root, target_path, name_filter=None, category_filter=None, dry_run=False):
+    """
+    Copies registry-referenced assets from Forge to an external project path.
+    """
+    registry_path = os.path.join(output_root, "registry.json")
+    if not os.path.exists(registry_path):
+        raise FileNotFoundError(f"Registry not found at {registry_path}. Sync requires a valid registry.")
+
+    try:
+        with open(registry_path, 'r') as f:
+            registry = json.load(f)
+    except Exception as e:
+        raise RuntimeError(f"Could not read registry: {e}")
+
+    assets = registry.get("assets", [])
+    selected_assets = []
+    
+    # 1. Filter
+    for a in assets:
+        if name_filter and a.get("name") != name_filter:
+            continue
+        if category_filter and a.get("category") != category_filter:
+            continue
+        selected_assets.append(a)
+
+    if dry_run:
+        print(f"\n--- SYNC DRY RUN to {target_path} ---")
+        print(f"Assets selected: {len(selected_assets)}")
+
+    folders_copied = 0
+    zips_copied = 0
+    warnings = 0
+    errors = 0
+
+    if not dry_run:
+        os.makedirs(target_path, exist_ok=True)
+
+    for a in selected_assets:
+        # A. Copy Folder
+        pkg_rel = a.get("package_path")
+        if pkg_rel:
+            src_pkg = os.path.join(output_root, pkg_rel)
+            dst_pkg = os.path.join(target_path, pkg_rel)
+            
+            if os.path.exists(src_pkg):
+                if dry_run:
+                    print(f" [SYNC] Folder: {pkg_rel}")
+                else:
+                    try:
+                        if os.path.exists(dst_pkg):
+                            shutil.rmtree(dst_pkg)
+                        shutil.copytree(src_pkg, dst_pkg)
+                        folders_copied += 1
+                    except Exception as e:
+                        print(f"Forge: Error copying folder {pkg_rel}: {e}")
+                        errors += 1
+            else:
+                print(f"Forge: WARNING - Source folder missing: {src_pkg}")
+                warnings += 1
+
+        # B. Copy ZIP
+        zip_rel = a.get("archive_path")
+        if zip_rel:
+            src_zip = os.path.join(output_root, zip_rel)
+            dst_zip = os.path.join(target_path, zip_rel)
+            
+            if os.path.exists(src_zip):
+                if dry_run:
+                    print(f" [SYNC] ZIP:    {zip_rel}")
+                else:
+                    try:
+                        shutil.copy2(src_zip, dst_zip)
+                        zips_copied += 1
+                    except Exception as e:
+                        print(f"Forge: Error copying ZIP {zip_rel}: {e}")
+                        errors += 1
+            else:
+                print(f"Forge: WARNING - Source ZIP missing: {src_zip}")
+                warnings += 1
+
+    return {
+        "selected": len(selected_assets),
+        "folders_copied": folders_copied,
+        "zips_copied": zips_copied,
+        "warnings": warnings,
+        "errors": errors
+    }

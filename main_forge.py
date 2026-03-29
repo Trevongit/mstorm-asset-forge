@@ -7,10 +7,12 @@ import datetime
 from forge.generator import generate_bpy_script
 from forge.packager import (
     prepare_package_dir, write_manifest, write_run_report, 
-    update_global_registry, create_zip_archive, prune_stale_assets
+    update_global_registry, create_zip_archive, prune_stale_assets,
+    sync_assets_to_project
 )
 from forge.agent import interpret_prompt
 from forge.safety import validate_snippet
+from forge.validator import validate_asset
 from blender.headless import execute_headless_blender
 
 def forge_item(asset_params, options, global_command, dry_run=False, llm_metadata=None):
@@ -45,6 +47,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         "package_path": None,
         "preview_path": None,
         "archive_path": None,
+        "validation": None,
         "error": None
     }
 
@@ -117,35 +120,6 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             result_info["preview_path"] = os.path.join(rel_package_path, preview_file)
             print(f"Forge: Preview rendered successfully.")
             
-        parametric_options = {
-            "bevel": bevel,
-            "subdivisions": subdivisions,
-            "auto_smooth": auto_smooth,
-            "shading": shading
-        }
-
-        source_type = "agent_bpy_sandbox" if python_code else "primitive"
-
-        # Write manifest BEFORE zip so it's included
-        archive_name_placeholder = f"{os.path.basename(package_path)}.zip" if do_zip else None
-
-        manifest_path, asset_id, timestamp = write_manifest(
-            package_path, name, primitive, scale_tuple, 
-            tags=tags_list,
-            preview_file=final_preview,
-            author=author,
-            creation_command=global_command,
-            geometry_stats=geometry_stats,
-            parametric_options=parametric_options,
-            source_type=source_type,
-            experimental_mode=experimental_mode,
-            llm_metadata=llm_metadata,
-            entry_point=asset_file,
-            format=fmt,
-            archive_file=archive_name_placeholder
-        )
-        print(f"Forge: Manifest written to {manifest_path}")
-        
         # Optional ZIP creation
         archive_file = None
         if do_zip:
@@ -155,6 +129,52 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
                 result_info["archive_path"] = archive_file
                 print(f"Forge: ZIP created: {archive_file}")
 
+        # --- Phase 4: Asset Validation ---
+        val_success, val_errors, val_warnings, val_meta = validate_asset(
+            package_path, asset_params, options, geometry_stats=geometry_stats
+        )
+        
+        validation_report = {
+            "success": val_success,
+            "errors": val_errors,
+            "warnings": val_warnings,
+            "metadata": val_meta
+        }
+        result_info["validation"] = validation_report
+
+        if not val_success:
+            print(f"Forge: Asset Validation FAILED: {', '.join(val_errors)}")
+            result_info["status"] = "failed"
+            result_info["error"] = f"Validation Errors: {', '.join(val_errors)}"
+            return False, result_info["error"], result_info
+
+        if val_warnings:
+            print(f"Forge: Validation Warnings: {', '.join(val_warnings)}")
+
+        # Write manifest last to reflect actual content
+        archive_name_placeholder = f"{os.path.basename(package_path)}.zip" if do_zip else None
+
+        manifest_path, asset_id, timestamp = write_manifest(
+            package_path, name, primitive, scale_tuple, 
+            tags=tags_list,
+            preview_file=final_preview,
+            author=author,
+            creation_command=global_command,
+            geometry_stats=geometry_stats,
+            parametric_options={
+                "bevel": bevel, "subdivisions": subdivisions, 
+                "auto_smooth": auto_smooth, "shading": shading
+            },
+            source_type="agent_bpy_sandbox" if python_code else "primitive",
+            experimental_mode=experimental_mode,
+            llm_metadata=llm_metadata,
+            entry_point=asset_file,
+            format=fmt,
+            archive_file=archive_name_placeholder,
+            validation_results=validation_report
+        )
+        print(f"Forge: Manifest written to {manifest_path}")
+        
         # --- Update Global Registry ---
         registry_info = {
             "asset_id": asset_id,
@@ -165,7 +185,8 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             "preview_path": result_info["preview_path"],
             "archive_path": archive_file,
             "package_path": rel_package_path,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "validation_success": val_success
         }
         update_global_registry(output_dir, registry_info)
         
@@ -179,7 +200,7 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         return False, err_msg, result_info
 
 def main():
-    parser = argparse.ArgumentParser(description="MStorm Asset Forge - OBJ/GLB Production Pipeline")
+    parser = argparse.ArgumentParser(description="MStorm Asset Forge - Production Pipeline")
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
     parser.add_argument("-p", "--prompt", type=str, help="Natural language request")
     parser.add_argument("--prompt-to-bpy", action="store_true", help="Experimental: Allow LLM to generate geometry code")
@@ -190,6 +211,9 @@ def main():
     
     # Utilities
     parser.add_argument("--prune", action="store_true", help="Remove stale asset folders and archives not in registry")
+    parser.add_argument("--sync", type=str, help="Path to an external project assets directory to sync registry items")
+    parser.add_argument("--sync-name", type=str, help="Limit sync to a specific asset name")
+    parser.add_argument("--sync-category", type=str, help="Limit sync to a specific category")
     
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
@@ -209,10 +233,8 @@ def main():
     
     args = parser.parse_args()
     full_command = " ".join(sys.argv)
-    
     output_dir_final = args.output_dir or "outputs"
 
-    # --- Pruning Path ---
     if args.prune:
         print(f"Forge: Pruning stale assets in '{output_dir_final}'...")
         try:
@@ -222,8 +244,28 @@ def main():
             else:
                 print(f"\nPrune Complete: Removed {summary['removed_folders']} folders and {summary['removed_zips']} zips.")
             print(f"Protected items skipped: {summary['protected_count']}")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Forge Error: {e}")
+            sys.exit(1)
+
+    if args.sync:
+        print(f"Forge: Syncing registry assets to '{args.sync}'...")
+        try:
+            summary = sync_assets_to_project(
+                output_dir_final, args.sync, 
+                name_filter=args.sync_name, 
+                category_filter=args.sync_category, 
+                dry_run=args.dry_run
+            )
+            if args.dry_run:
+                print(f"\nSync Dry Run Summary: Selected {summary['selected']} assets for sync.")
+            else:
+                print(f"\nSync Complete: Copied {summary['folders_copied']} folders and {summary['zips_copied']} zips.")
+            if summary['warnings'] > 0:
+                print(f"Warnings: {summary['warnings']}")
             if summary['errors'] > 0:
-                print(f"Errors encountered: {summary['errors']}")
+                print(f"Errors: {summary['errors']}")
             sys.exit(0)
         except Exception as e:
             print(f"Forge Error: {e}")
@@ -237,25 +279,17 @@ def main():
         if args.prompt_to_bpy and not args.llm:
             print("Error: --prompt-to-bpy requires --llm.")
             sys.exit(1)
-            
-        print(f"Agent: Interpreting prompt: '{args.prompt}' (Sandbox: {args.prompt_to_bpy})...")
         req, msg = interpret_prompt(args.prompt, use_llm=args.llm, 
                                     provider=args.provider, model=args.model,
                                     sandbox_mode=args.prompt_to_bpy)
         if not req:
             print(f"Agent Error: {msg}")
             sys.exit(1)
-        
-        print(f"Agent: Success.")
-        print(json.dumps(req, indent=2))
-        
         if args.prompt_to_bpy:
             if "options" not in req: req["options"] = {}
             req["options"]["experimental_mode"] = True
-            
         if args.llm:
             global_llm_metadata = {"provider": args.provider, "model": args.model or "default"}
-            
         requests = [req]
     elif args.file:
         if not os.path.exists(args.file):
@@ -323,9 +357,6 @@ def main():
         if args.category is not None: options_data["category"] = args.category
         if args.zip is True: options_data["zip"] = True
         
-        # Ensure we use the final dir for each item
-        item_output_dir = options_data.get("output_dir", output_dir_final)
-
         if not is_batch:
             if args.name is not None: asset_data["name"] = args.name
             if args.primitive is not None: asset_data["primitive"] = args.primitive
@@ -349,7 +380,7 @@ def main():
     fail_count = total - success_count
 
     run_metadata = {
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat() + "Z",
         "command": full_command,
         "output_dir": output_dir_final,
         "total_count": total,
