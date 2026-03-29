@@ -36,6 +36,10 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     base_color = options.get("base_color", (0.8, 0.8, 0.8))
     metallic = float(options.get("metallic", 0.0))
     roughness = float(options.get("roughness", 0.5))
+    emission_color = options.get("emission_color", (0.0, 0.0, 0.0))
+    emission_strength = float(options.get("emission_strength", 0.0))
+    alpha = float(options.get("alpha", 1.0))
+    mat_name = options.get("material_name", "ForgeMaterial")
     
     python_code = options.get("python_code")
     experimental_mode = options.get("experimental_mode", False)
@@ -69,6 +73,12 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         return False, result_info["error"], result_info
     if not (0.0 <= roughness <= 1.0):
         result_info["error"] = "Roughness must be between 0.0 and 1.0"
+        return False, result_info["error"], result_info
+    if not (0.0 <= alpha <= 1.0):
+        result_info["error"] = "Alpha must be between 0.0 and 1.0"
+        return False, result_info["error"], result_info
+    if emission_strength < 0:
+        result_info["error"] = "Emission strength must be non-negative"
         return False, result_info["error"], result_info
 
     # Sandbox Snippet Validation
@@ -107,6 +117,8 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
         name, primitive, scale_tuple, shading=shading,
         bevel=bevel, subdivisions=subdivisions, auto_smooth=auto_smooth,
         base_color=base_color, metallic=metallic, roughness=roughness,
+        emission_color=emission_color, emission_strength=emission_strength,
+        alpha=alpha, material_name=mat_name,
         output_path=asset_path, 
         preview_path=preview_path,
         export_format=fmt,
@@ -196,7 +208,9 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             parametric_options={
                 "bevel": bevel, "subdivisions": subdivisions, 
                 "auto_smooth": auto_smooth, "shading": shading,
-                "base_color": base_color, "metallic": metallic, "roughness": roughness
+                "base_color": base_color, "metallic": metallic, "roughness": roughness,
+                "emission_color": emission_color, "emission_strength": emission_strength,
+                "alpha": alpha, "material_name": mat_name
             },
             source_type="agent_bpy_sandbox" if python_code else "primitive",
             experimental_mode=experimental_mode,
@@ -254,6 +268,8 @@ def main():
     parser.add_argument("--info", type=str, help="Show detailed information for a specific asset name")
     parser.add_argument("--sort", type=str, choices=["name", "date"], default="date", help="Sort library list")
     parser.add_argument("--json", action="store_true", help="Output explorer results as JSON")
+    parser.add_argument("--category", type=str, help="Filter list by category")
+    parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Filter list by format")
     
     # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
@@ -263,14 +279,17 @@ def main():
     parser.add_argument("--bevel", type=float, help="Bevel width")
     parser.add_argument("--subdivisions", type=int, help="Subdivision levels (0-5)")
     parser.add_argument("--auto-smooth", action="store_true", default=None, help="Enable auto-smooth")
-    parser.add_argument("--format", type=str, choices=["obj", "glb"], help="Export format")
-    parser.add_argument("--category", type=str, help="Asset category")
+    # parser.add_argument("--format" is already defined in Explorer section above
     parser.add_argument("--zip", action="store_true", help="Create a ZIP archive of the package")
     
     # PBR Material Arguments
     parser.add_argument("--color", type=str, help="Base color (Hex string like #FFD700)")
     parser.add_argument("--metallic", type=float, help="Metallic value (0.0-1.0)")
     parser.add_argument("--roughness", type=float, help="Roughness value (0.0-1.0)")
+    parser.add_argument("--emission-color", type=str, help="Emission color (Hex string)")
+    parser.add_argument("--emission-strength", type=float, help="Emission strength (>= 0)")
+    parser.add_argument("--alpha", type=float, help="Alpha transparency (0.0-1.0)")
+    parser.add_argument("--material-name", type=str, help="Custom material name")
     
     parser.add_argument("--author", type=str, help="Asset author name")
     parser.add_argument("--output-dir", type=str, help="Output root directory")
@@ -417,6 +436,10 @@ def main():
                 "base_color": args.color or "#CCCCCC",
                 "metallic": args.metallic or 0.0,
                 "roughness": args.roughness or 0.5,
+                "emission_color": args.emission_color or "#000000",
+                "emission_strength": args.emission_strength or 0.0,
+                "alpha": args.alpha or 1.0,
+                "material_name": args.material_name or "ForgeMaterial",
                 "author": args.author or "MStorm Forge",
                 "output_dir": output_dir_final,
                 "tags": [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else [],
@@ -471,6 +494,10 @@ def main():
             if args.color is not None: options_data["base_color"] = args.color
             if args.metallic is not None: options_data["metallic"] = args.metallic
             if args.roughness is not None: options_data["roughness"] = args.roughness
+            if args.emission_color is not None: options_data["emission_color"] = args.emission_color
+            if args.emission_strength is not None: options_data["emission_strength"] = args.emission_strength
+            if args.alpha is not None: options_data["alpha"] = args.alpha
+            if args.material_name is not None: options_data["material_name"] = args.material_name
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 

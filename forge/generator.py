@@ -5,6 +5,8 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),
                         shading="flat", bevel=0.0, subdivisions=0, 
                         auto_smooth=False, base_color=(0.8, 0.8, 0.8), 
                         metallic=0.0, roughness=0.5,
+                        emission_color=(0.0, 0.0, 0.0), emission_strength=0.0,
+                        alpha=1.0, material_name="ForgeMaterial",
                         output_path="asset.obj", preview_path=None, 
                         export_format="obj", python_code=None):
     """
@@ -81,7 +83,9 @@ obj = bpy.context.active_object
         op = primitive_map.get(primitive.lower(), "bpy.ops.mesh.primitive_cube_add")
         geo_gen = f"{op}(location=(0, 0, 0))\nobj = bpy.context.active_object"
 
+    # Material inputs
     color_repr = f"'{base_color}'" if isinstance(base_color, str) else str(base_color)
+    emit_color_repr = f"'{emission_color}'" if isinstance(emission_color, str) else str(emission_color)
 
     script = f"""import bpy
 import os
@@ -90,6 +94,7 @@ import math
 from mathutils import Vector
 
 def hex_to_rgb(hex_str):
+    if not isinstance(hex_str, str): return hex_str
     hex_str = hex_str.lstrip('#')
     if len(hex_str) == 3:
         hex_str = ''.join([c*2 for c in hex_str])
@@ -113,21 +118,32 @@ obj.scale = ({scale[0]}, {scale[1]}, {scale[2]})
 bpy.ops.object.transform_apply(scale=True)
 
 # --- Material Setup (PBR) ---
-mat = bpy.data.materials.new(name="ForgeMaterial")
+mat = bpy.data.materials.new(name="{material_name}")
 mat.use_nodes = True
 nodes = mat.node_tree.nodes
 principled = nodes.get("Principled BSDF")
 
 if principled:
-    # Set Base Color
-    color_val = {color_repr}
-    if isinstance(color_val, str):
-        principled.inputs['Base Color'].default_value = hex_to_rgb(color_val)
-    else:
-        principled.inputs['Base Color'].default_value = (color_val[0], color_val[1], color_val[2], 1.0)
+    # Base Color & Alpha
+    bc = {color_repr}
+    bc_rgba = hex_to_rgb(bc) if isinstance(bc, str) else (bc[0], bc[1], bc[2], 1.0)
+    principled.inputs['Base Color'].default_value = bc_rgba
+    principled.inputs['Alpha'].default_value = {alpha}
     
+    # Metal / Rough
     principled.inputs['Metallic'].default_value = {metallic}
     principled.inputs['Roughness'].default_value = {roughness}
+    
+    # Emission
+    ec = {emit_color_repr}
+    ec_rgba = hex_to_rgb(ec) if isinstance(ec, str) else (ec[0], ec[1], ec[2], 1.0)
+    principled.inputs['Emission Color'].default_value = ec_rgba
+    principled.inputs['Emission Strength'].default_value = {emission_strength}
+
+    # Blend Mode for Transparency
+    if {alpha} < 1.0:
+        mat.blend_method = 'BLEND'
+        mat.shadow_method = 'HASHED'
 
 if obj.data.materials:
     obj.data.materials[0] = mat
