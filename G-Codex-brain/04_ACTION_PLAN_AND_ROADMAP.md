@@ -1,18 +1,18 @@
 # 04 ACTION PLAN AND ROADMAP
 
-## Phase 1: Static Prop MVP (Completed)
-- [x] **Orchestrator:** Create `main_forge.py` as a server-less CLI.
-- [x] **Exporter:** Implement headless OBJ/MTL export and preview rendering.
-- [x] **Packager:** Implement `manifest.json` and timestamped folder logic.
-- [x] **Input:** Support `--file` JSON requests and CLI overrides.
-- [x] **Formalize:** Document Input/Output contract in `docs/forge-contract.md`.
-- [x] **Milestone 1:** Successful "CLI -> Blender -> Package -> Contract" round trip.
+## Phase 1: Foundation (Completed)
+- [x] **Orchestration:** `main_forge.py` CLI with batch and JSON support.
+- [x] **Automation:** Headless Blender OBJ/MTL/Preview/Stats flow.
+- [x] **Documentation:** Package Contract v0.1 and README pivot.
+- [x] **Agent Skeleton:** Rule-based interpretation and LLM Connector.
+- [x] **Reporting:** Sequential session summary (`run_report.json`).
 
-## Phase 2: Refined Generation (Next)
-- [ ] **Local Agent:** Implement local LLM caller for dynamic `bpy` code.
-- [ ] **Complex Props:** Support for modular prop assembly (beyond simple primitives).
-- [ ] **Legacy Cleanup:** Remove deprecated LL3M auth and cloud client code.
+## Phase 2: Intelligence & Refinement (Next)
+- [ ] **Prompt-to-Code:** Implement local LLM prompting to generate dynamic `bpy` scripts for complex meshes.
+- [ ] **Environment Fix:** Troubleshoot and resolve `_ctypes` issue to restore glTF/GLB support.
+- [ ] **Advanced Framing:** Implement bounding-box-aware camera placement for previews.
+- [ ] **Local LLM Backend:** Add support for local providers like Ollama/LM Studio.
 
 ## Phase 3: MStorm Integration
 - [ ] Automated asset indexing for MStorm Studio 2026.
-- [ ] GLB restoration (if library issues are resolved).
+- [ ] Self-critique loop via visual feedback.

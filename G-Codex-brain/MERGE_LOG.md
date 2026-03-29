@@ -10,4 +10,8 @@
 | 2026-03-29 | Slice 4: Package Contract v0.1 & README | `c075418` | GCagent |
 | 2026-03-29 | Slice 5: Legacy Cleanup & Narrowing | `5ea6250` | GCagent |
 | 2026-03-29 | Slice 6: NOTICE & Attribution | `bde1d0d` | GCagent |
-| 2026-03-29 | Slice 7 & 8: Contract Enrichment & Batch Support | `229533a` | GCagent |
+| 2026-03-29 | Slices 7 & 8: Contract Enrichment & Batch Support | `229533a` | GCagent |
+| 2026-03-29 | Slice 9 & 10: NL Interpretation & Preview Polish | `372daa1` | GCagent |
+| 2026-03-29 | Slice 11: Geometry Stats Extraction | `cda2948` | GCagent |
+| 2026-03-29 | Slice 12: Package Index / Run Report | `f66622a` | GCagent |
+| 2026-03-29 | Slice 13: Real LLM Connector Skeleton | `d7d3a79` | GCagent |
