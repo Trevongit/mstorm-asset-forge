@@ -74,15 +74,43 @@ def find_blender_executable() -> Optional[str]:
     return None
 
 
+def sanitize_blender_env() -> Dict[str, str]:
+    """
+    Creates a sanitized environment for Blender to prevent contamination
+    from external Python environments (like uv/conda) and ensures
+    system libraries like _ctypes and numpy are accessible.
+    """
+    env = os.environ.copy()
+    
+    # 1. Sanitize PATH: Prioritize system binaries to avoid uv-managed python shims
+    # This restores access to _ctypes which is often missing in tool-managed pythons
+    system_paths = ["/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"]
+    current_path = env.get("PATH", "")
+    new_path_list = system_paths.copy()
+    for p in current_path.split(os.pathsep):
+        if p not in new_path_list and ".local/bin" not in p:
+            new_path_list.append(p)
+    env["PATH"] = os.pathsep.join(new_path_list)
+    
+    # 2. Support local .venv for dependencies like numpy
+    # Blender 4.0+ on some distros needs numpy but doesn't bundle it
+    repo_root = Path(__file__).parent.parent.absolute()
+    venv_site = repo_root / ".venv" / "lib" / f"python3.{sys.version_info.minor}" / "site-packages"
+    
+    pythonpath = env.get("PYTHONPATH", "")
+    pp_list = [str(venv_site)] if venv_site.exists() else []
+    if pythonpath:
+        pp_list.append(pythonpath)
+    
+    if pp_list:
+        env["PYTHONPATH"] = os.pathsep.join(pp_list)
+        
+    return env
+
+
 def is_rendering_code(code: str) -> bool:
     """
     Detect if the provided code is likely to be rendering code.
-    
-    Args:
-        code: Python code string to analyze
-        
-    Returns:
-        True if the code appears to be rendering code, False otherwise
     """
     if not code:
         return False
@@ -106,14 +134,7 @@ def is_rendering_code(code: str) -> bool:
 
 def execute_headless_blender(code: str, timeout: int = 300, blend_path: Optional[str] = None) -> Dict[str, Any]:
     """
-    Execute Blender code in headless mode using subprocess.
-    
-    Args:
-        code: Python code to execute in Blender
-        timeout: Timeout in seconds for the execution
-        
-    Returns:
-        Dictionary with execution result, similar to socket-based execution
+    Execute Blender code in headless mode using subprocess with a sanitized environment.
     """
     blender_path = find_blender_executable()
     if not blender_path:
@@ -131,16 +152,15 @@ def execute_headless_blender(code: str, timeout: int = 300, blend_path: Optional
             f.write(code)
             temp_script = f.name
         
-        # Prepare Blender command; load .blend if provided to reproduce current scene
+        # Prepare Blender command
         cmd = [blender_path, "--background"]
         if blend_path:
             cmd.extend(["-b", blend_path])
         cmd.extend(["--python", temp_script, "--"])
         
         print(f"[Headless] Executing Blender code in headless mode...")
-        print(f"[Headless] Command: {' '.join(cmd[:3])} <script>")
         
-        # Execute the command
+        # Execute the command with sanitized environment
         start_time = time.time()
         try:
             result = subprocess.run(
@@ -148,7 +168,8 @@ def execute_headless_blender(code: str, timeout: int = 300, blend_path: Optional
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                cwd=os.getcwd()
+                cwd=os.getcwd(),
+                env=sanitize_blender_env()
             )
             execution_time = time.time() - start_time
             
@@ -170,7 +191,7 @@ def execute_headless_blender(code: str, timeout: int = 300, blend_path: Optional
                 }
             else:
                 # Error
-                error_output = result.stderr.strip() if result.stderr else "Unknown error"
+                error_output = output if output else "Unknown error"
                 return {
                     "status": "error",
                     "message": f"Headless execution failed (exit code {result.returncode}): {error_output}",
@@ -219,14 +240,6 @@ def execute_headless_blender(code: str, timeout: int = 300, blend_path: Optional
 def should_use_headless(code: str, expects_render: bool, headless_enabled: bool) -> bool:
     """
     Determine if headless execution should be used for the given code.
-    
-    Args:
-        code: Python code to execute
-        expects_render: Flag indicating if the server expects rendering
-        headless_enabled: Configuration flag for headless rendering
-        
-    Returns:
-        True if headless execution should be used, False otherwise
     """
     if not headless_enabled:
         return False

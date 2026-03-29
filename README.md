@@ -34,6 +34,11 @@ The **MStorm Asset Forge** is a local-first bridge for generating and assembling
 ## Documentation
 For full technical specifications on inputs, outputs, and CLI behavior, see the [MStorm Asset Forge — Package Contract (MVP v0.1)](docs/forge-contract.md).
 
+## GLB Export Support
+Reliable GLB/glTF export is now supported. 
+*   **Note:** If GLB export fails due to missing dependencies (like `numpy`), the system will automatically attempt to use a project-local `.venv` if present. 
+*   To ensure compatibility, you can create a local environment: `python3 -m venv .venv && source .venv/bin/activate && pip install numpy`
+
 ## Attribution & License
 This project is a standalone local fork and adaptation of the **LL3M** project, originally developed by **Threedle at the University of Chicago**.
 
