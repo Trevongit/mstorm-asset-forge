@@ -15,7 +15,8 @@ def prepare_package_dir(output_root, asset_name):
 
 def write_manifest(package_path, asset_name, primitive, scale, 
                    tags=None, preview_file=None, author="MStorm Forge", 
-                   creation_command=None, geometry_stats=None, version="1.0.0"):
+                   creation_command=None, geometry_stats=None, 
+                   parametric_options=None, version="1.0.0"):
     """
     Writes a manifest.json file to the package directory.
     """
@@ -52,6 +53,9 @@ def write_manifest(package_path, asset_name, primitive, scale,
         "tags": final_tags
     }
     
+    if parametric_options:
+        manifest["metadata"]["parametric_options"] = parametric_options
+    
     if preview_file:
         manifest["preview_image"] = preview_file
     if geometry_stats:
@@ -66,7 +70,6 @@ def write_manifest(package_path, asset_name, primitive, scale,
 def write_run_report(output_dir, run_metadata, asset_results):
     """
     Writes a summary run_report.json to the output directory.
-    Non-fatal if writing fails.
     """
     report = {
         "run_metadata": run_metadata,
@@ -75,7 +78,6 @@ def write_run_report(output_dir, run_metadata, asset_results):
     
     report_path = os.path.join(output_dir, "run_report.json")
     try:
-        # Ensure output dir exists (it should, but just in case)
         os.makedirs(output_dir, exist_ok=True)
         with open(report_path, 'w') as f:
             json.dump(report, f, indent=4)

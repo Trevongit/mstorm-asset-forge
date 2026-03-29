@@ -1,10 +1,13 @@
 import textwrap
 import os
 
-def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), shading="flat", output_path="asset.obj", preview_path=None):
+def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), 
+                        shading="flat", bevel=0.0, subdivisions=0, 
+                        auto_smooth=False, output_path="asset.obj", 
+                        preview_path=None):
     """
     Generates a minimal Blender Python script to create a primitive, 
-    render a preview, and export it as OBJ.
+    apply modifiers, render a preview, and export it as OBJ.
     """
     # Map primitives to Blender ops
     primitive_map = {
@@ -20,7 +23,7 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), sha
     
     shading_cmd = "bpy.ops.object.shade_smooth()" if shading.lower() == "smooth" else "bpy.ops.object.shade_flat()"
 
-    # We build the script using string formatting instead of a giant f-string to avoid escaping issues
+    # We build the script using string formatting
     script_template = textwrap.dedent("""
         import bpy
         import os
@@ -39,14 +42,42 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), sha
         obj.scale = ({scale_x}, {scale_y}, {scale_z})
         bpy.ops.object.transform_apply(scale=True)
 
+        # --- Apply Modifiers ---
+        
+        # 1. Bevel
+        if {bevel} > 0:
+            bev = obj.modifiers.new(name="ForgeBevel", type='BEVEL')
+            bev.width = {bevel}
+            # Optional: ensure segments are reasonable
+            bev.segments = 3
+            
+        # 2. Subdivisions
+        if {subdivisions} > 0:
+            sub = obj.modifiers.new(name="ForgeSubsurf", type='SUBSURF')
+            sub.levels = {subdivisions}
+            sub.render_levels = {subdivisions}
+
         # Apply shading
         {shading_cmd}
+        
+        # 3. Auto Smooth (Specific to Blender 4.0.2 handling)
+        if {auto_smooth}:
+            # In 4.0, shade_smooth with auto_smooth is often handled via mesh property
+            obj.data.use_auto_smooth = True
+            obj.data.auto_smooth_angle = 0.523599 # 30 degrees
 
         # --- Geometry Stats Extraction ---
-        v_count = len(obj.data.vertices)
-        f_count = len(obj.data.polygons)
+        # Note: We use evaluated mesh to get counts after modifiers
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        obj_eval = obj.evaluated_get(depsgraph)
+        mesh_eval = obj_eval.to_mesh()
+        
+        v_count = len(mesh_eval.vertices)
+        f_count = len(mesh_eval.polygons)
         stats = {{"vertex_count": v_count, "face_count": f_count}}
         print("FORGE_STATS: " + json.dumps(stats))
+        
+        obj_eval.to_mesh_clear()
 
         # --- Preview Rendering ---
         if "{preview_path}":
@@ -71,9 +102,9 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), sha
         # --- Export ---
         print("Blender: Exporting to {output_path}")
         if hasattr(bpy.ops.wm, 'obj_export'):
-            bpy.ops.wm.obj_export(filepath="{output_path}", export_selected_objects=True)
+            bpy.ops.wm.obj_export(filepath="{output_path}", export_selected_objects=True, apply_modifiers=True)
         else:
-            bpy.ops.export_scene.obj(filepath="{output_path}", use_selection=True)
+            bpy.ops.export_scene.obj(filepath="{output_path}", use_selection=True, use_mesh_modifiers=True)
 
         print("Blender: Successfully exported " + obj.name)
     """).strip()
@@ -85,6 +116,9 @@ def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), sha
         scale_y=scale[1],
         scale_z=scale[2],
         shading_cmd=shading_cmd,
+        bevel=bevel,
+        subdivisions=subdivisions,
+        auto_smooth="True" if auto_smooth else "False",
         preview_path=abs_preview_path,
         output_path=abs_output_path
     )

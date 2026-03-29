@@ -23,6 +23,9 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
   },
   "options": {
     "shading": "flat|smooth (Optional, default 'flat')",
+    "bevel": "float (Optional, non-negative, default 0.0)",
+    "subdivisions": "int (Optional, 0-5, default 0)",
+    "auto_smooth": "boolean (Optional, default false)",
     "author": "string (Optional, default 'MStorm Forge')",
     "no_preview": boolean (Optional, default false),
     "output_dir": "string (Optional, default 'outputs')",
@@ -92,6 +95,8 @@ outputs/
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
+*   **Modifier Behavior:** Parametric modifiers are applied sequentially (Bevel then Subdivision). 
+    *   *Note:* Applying `bevel` or `subdivisions` to a zero-thickness `plane` may result in little to no visible geometry change in the output.
 *   **Preview Failure:** If OBJ/MTL export succeeds but `preview.png` rendering fails, the package is considered **SUCCESSFUL**, and the `preview_image` field is omitted from the manifest.
 *   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.
 *   **Format Limitation:** glTF/GLB export is currently excluded from this contract due to system-level library constraints.

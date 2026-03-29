@@ -19,6 +19,10 @@ def forge_item(asset_params, options, global_command, dry_run=False):
     scale_tuple = tuple(map(float, asset_params.get("scale", [1.0, 1.0, 1.0])))
     
     shading = options.get("shading", "flat")
+    bevel = float(options.get("bevel", 0.0))
+    subdivisions = int(options.get("subdivisions", 0))
+    auto_smooth = bool(options.get("auto_smooth", False))
+    
     author = options.get("author", "MStorm Forge")
     output_dir = options.get("output_dir", "outputs")
     no_preview = options.get("no_preview", False)
@@ -33,10 +37,20 @@ def forge_item(asset_params, options, global_command, dry_run=False):
         "error": None
     }
 
+    # Validation
+    if bevel < 0: 
+        result_info["error"] = "Bevel must be non-negative"
+        return False, result_info["error"], result_info
+    if not (0 <= subdivisions <= 5): 
+        result_info["error"] = "Subdivisions must be between 0 and 5"
+        return False, result_info["error"], result_info
+
     print(f"\n>>> Forge Item: '{name}' ({primitive}) <<<")
+    if bevel > 0 or subdivisions > 0 or auto_smooth:
+        print(f"Forge: Parametric Options - Bevel: {bevel}, Subdiv: {subdivisions}, AutoSmooth: {auto_smooth}")
     
     if dry_run:
-        print(f"DRY RUN: Validation passed for '{name}' as a {primitive}.")
+        print(f"DRY RUN: Validation passed for '{name}'.")
         result_info["status"] = "dry_run"
         return True, "Dry run successful", result_info
 
@@ -57,11 +71,12 @@ def forge_item(asset_params, options, global_command, dry_run=False):
     # 2. Generate and Execute BPY script
     bpy_script = generate_bpy_script(
         name, primitive, scale_tuple, shading=shading,
+        bevel=bevel, subdivisions=subdivisions, auto_smooth=auto_smooth,
         output_path=asset_path, 
         preview_path=preview_path
     )
     
-    print(f"Forge: Executing Blender headless ({primitive} @ {shading} shading)...")
+    print(f"Forge: Executing Blender headless ({primitive})...")
     result = execute_headless_blender(bpy_script, timeout=60)
     
     # 3. Handle Result
@@ -85,13 +100,21 @@ def forge_item(asset_params, options, global_command, dry_run=False):
             result_info["preview_path"] = os.path.join(result_info["package_path"], preview_file)
             print(f"Forge: Preview rendered successfully.")
             
+        parametric_options = {
+            "bevel": bevel,
+            "subdivisions": subdivisions,
+            "auto_smooth": auto_smooth,
+            "shading": shading
+        }
+
         write_manifest(
             package_path, name, primitive, scale_tuple, 
             tags=tags_list,
             preview_file=final_preview,
             author=author,
             creation_command=global_command,
-            geometry_stats=geometry_stats
+            geometry_stats=geometry_stats,
+            parametric_options=parametric_options
         )
         print(f"Forge: Successfully packaged '{name}'")
         result_info["status"] = "success"
@@ -107,13 +130,19 @@ def main():
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
     parser.add_argument("-p", "--prompt", type=str, help="Natural language request")
     parser.add_argument("--llm", action="store_true", help="Use LLM for prompt interpretation")
-    parser.add_argument("--provider", type=str, default="openai", choices=["openai", "mock"], help="LLM provider")
+    parser.add_argument("--provider", type=str, default="openai", choices=["openai", "gemini", "mock"], help="LLM provider")
     parser.add_argument("--model", type=str, help="LLM model name")
     parser.add_argument("--dry-run", action="store_true", help="Interpret and validate without running Blender")
+    
+    # Deterministic Arguments
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
     parser.add_argument("--scale", type=str, help="Comma-separated scale (x,y,z)")
     parser.add_argument("--shading", type=str, choices=["flat", "smooth"], help="Shading type")
+    parser.add_argument("--bevel", type=float, help="Bevel width")
+    parser.add_argument("--subdivisions", type=int, help="Subdivision levels (0-5)")
+    parser.add_argument("--auto-smooth", action="store_true", default=None, help="Enable auto-smooth")
+    
     parser.add_argument("--author", type=str, help="Asset author name")
     parser.add_argument("--output-dir", type=str, help="Output root directory")
     parser.add_argument("--tags", type=str, help="Comma-separated tags")
@@ -131,7 +160,6 @@ def main():
         if not req:
             print(f"Agent Error: {msg}")
             sys.exit(1)
-        
         print(f"Agent: Success.")
         print(json.dumps(req, indent=2))
         requests = [req]
@@ -155,6 +183,9 @@ def main():
             },
             "options": {
                 "shading": args.shading or "flat",
+                "bevel": args.bevel or 0.0,
+                "subdivisions": args.subdivisions or 0,
+                "auto_smooth": args.auto_smooth if args.auto_smooth is not None else False,
                 "author": args.author or "MStorm Forge",
                 "output_dir": args.output_dir or "outputs",
                 "tags": [t.strip() for t in args.tags.split(",") if t.strip()] if args.tags else [],
@@ -189,6 +220,7 @@ def main():
                 })
                 continue
 
+        # Global CLI Overrides
         if args.output_dir is not None: options_data["output_dir"] = args.output_dir
         if args.no_preview is not None: options_data["no_preview"] = args.no_preview
         if args.author is not None: options_data["author"] = args.author
@@ -200,6 +232,9 @@ def main():
             if args.primitive is not None: asset_data["primitive"] = args.primitive
             if args.scale is not None: asset_data["scale"] = list(map(float, args.scale.split(",")))
             if args.shading is not None: options_data["shading"] = args.shading
+            if args.bevel is not None: options_data["bevel"] = args.bevel
+            if args.subdivisions is not None: options_data["subdivisions"] = args.subdivisions
+            if args.auto_smooth is not None: options_data["auto_smooth"] = args.auto_smooth
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 
