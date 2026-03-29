@@ -22,7 +22,18 @@
 - [x] **Integrity:** Hardened success signals and artifact verification.
 - [x] **Batch Architect:** LLM-driven multi-item generation from a single prompt.
 
-## Phase 5: Advanced Automation (Next)
-- [ ] **Visual Critique:** Automated feedback loop using rendered previews to refine geometry.
-- [ ] **Geometry Library:** Pre-baked high-quality BPY templates for common furniture/assets.
-- [ ] **Material Support:** Expand contract to support PBR material parameters (Metal/Rough).
+## Phase 5: Advanced Deterministic Features (In Progress)
+- [x] **PBR Materials:** Added base_color, metallic, roughness to contract.
+- [x] **Library Explorer:** Added `--list` and `--info` explorer commands.
+- [ ] **Modular Assembly:** Support compound props like `table`, `shelf` (Slice 3).
+- [ ] **Rich Explorer:** Improve list UX with sorting and JSON output (Slice 4).
+- [ ] **Advanced Materials:** Material presets and future texture mapping (Slice 5).
+
+## Phase 6: Archetypes & Production Scaling
+- [ ] **Archetypes:** Pre-baked deterministic named asset recipes.
+- [ ] **Validation+:** Profile-based constraints (e.g., mobile vs high-fidelity).
+- [ ] **Registry+:** Enrichment with bounding box and material metadata.
+- [ ] **Self-Critique:** (Experimental) Visual feedback loop via Vision LLM.
+
+---
+*For detailed slice-by-slice planning, see [docs/engineering-roadmap.md](../docs/engineering-roadmap.md).*
