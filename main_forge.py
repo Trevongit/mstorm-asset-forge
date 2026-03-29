@@ -287,6 +287,7 @@ def main():
     parser.add_argument("--auto-smooth", action="store_true", default=None, help="Enable auto-smooth")
     # parser.add_argument("--format" is already defined in Explorer section above
     parser.add_argument("--zip", action="store_true", help="Create a ZIP archive of the package")
+    parser.add_argument("--validation-profile", type=str, choices=["mobile", "standard", "high_fidelity"], default="standard", help="Validation rules profile")
     
     # PBR Material Arguments
     parser.add_argument("--color", type=str, help="Base color (Hex string like #FFD700)")
@@ -440,6 +441,7 @@ def main():
                 "category": args.category,
                 "zip": args.zip,
                 "preset": args.preset,
+                "validation_profile": args.validation_profile,
                 "base_color": args.color or "#CCCCCC",
                 "metallic": args.metallic or 0.0,
                 "roughness": args.roughness or 0.5,
@@ -499,6 +501,7 @@ def main():
             if args.category is not None: options_data["category"] = args.category
             if args.zip is not None: options_data["zip"] = args.zip
             if args.preset is not None: options_data["preset"] = args.preset
+            if args.validation_profile is not None: options_data["validation_profile"] = args.validation_profile
             if args.color is not None: options_data["base_color"] = args.color
             if args.metallic is not None: options_data["metallic"] = args.metallic
             if args.roughness is not None: options_data["roughness"] = args.roughness

@@ -25,6 +25,7 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
     "format": "obj|glb (Optional, default 'obj')",
     "category": "string (Optional, e.g., 'furniture')",
     "zip": "boolean (Optional, default false)",
+    "validation_profile": "mobile|standard|high_fidelity (Optional, default 'standard')",
     "shading": "flat|smooth (Optional, default 'flat')",
     "base_color": "string (Hex #RRGGBB) | [r, g, b] (Optional, default #CCCCCC)",
     "metallic": "float (0.0 - 1.0, Optional, default 0.0)",
@@ -68,12 +69,17 @@ outputs/
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
-*   **PBR Materials:** The Forge uses a standard **Blender Principled BSDF** material.
-    *   **GLB Path:** Supports full PBR (Color, Alpha, Metal, Rough, Emission). This is the preferred handoff path.
-    *   **OBJ Path:** Primarily supports Color (Diffuse); Emission and Transparency (Alpha) may have limited fidelity in standard MTL.
 *   **Modular Props:** 
     *   `table`: Flat top with four cylindrical legs.
     *   `stool`: Rounded seat with four cylindrical legs.
     *   `crate`: Solid box with frame-ready topology.
     *   *Scale:* Applied to the entire assembly after grouping.
+*   **Validation Profiles:**
+    *   `mobile`: 10k faces / 10MB limit. GLB preferred.
+    *   `standard`: 50k faces / 50MB limit.
+    *   `high_fidelity`: 250k faces / 250MB limit.
+    *   *Note:* Profile violations are currently emitted as **warnings** in the manifest and run report, while missing artifacts remain **hard failures**.
+*   **PBR Materials:** The Forge uses a standard **Blender Principled BSDF** material.
+    *   **GLB Path:** Supports full PBR (Color, Alpha, Metal, Rough, Emission). This is the preferred handoff path.
+    *   **OBJ Path:** Primarily supports Color (Diffuse); Emission and Transparency (Alpha) may have limited fidelity in standard MTL.
 *   **Blender Version:** Orchestrated via Blender 4.0.2 in headless mode.
