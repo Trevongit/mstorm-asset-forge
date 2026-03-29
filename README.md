@@ -16,7 +16,13 @@ The **MStorm Asset Forge** is a local-first bridge for generating and assembling
 ## Quick Start
 1.  **Requirement:** Blender 4.0+ must be installed and in your `PATH`.
 2.  **Install Dependencies:** `pip install -r requirements.txt`
-3.  **Basic Generation:**
+3.  **Local Secrets:** Copy `.env.example` to `.env`, fill in your API keys, and load them into your shell:
+    ```bash
+    cp .env.example .env
+    # Load variables (Linux/macOS)
+    set -a; source .env; set +a
+    ```
+4.  **Basic Generation:**
     ```bash
     python3 main_forge.py --name "my_table" --primitive "cube" --scale "1.5,2.0,0.1"
     ```
