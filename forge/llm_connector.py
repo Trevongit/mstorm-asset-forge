@@ -73,11 +73,57 @@ class OpenAIConnector(LLMConnector):
         except Exception as e:
             raise RuntimeError(f"OpenAI API request failed: {e}")
 
+class GeminiConnector(LLMConnector):
+    """Connector for Google Gemini API (REST)."""
+    def __init__(self, model="gemini-1.5-flash"):
+        self.model = model
+        self.api_key = os.environ.get("GEMINI_API_KEY")
+        # Use v1beta for advanced features like system_instruction/response_mime_type if needed
+        self.url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.api_key}"
+
+    def generate_request(self, prompt: str) -> dict:
+        if not self.api_key:
+            raise ValueError("GEMINI_API_KEY environment variable is not set.")
+
+        print(f"[LLM] Querying Gemini ({self.model})...")
+
+        system_prompt = (
+            "You are an assistant for the MStorm Asset Forge. "
+            "Translate the user's natural language request into a valid JSON object. "
+            "You MUST return ONLY the JSON object. No explanation, no markdown blocks. "
+            "The JSON must strictly follow this schema: "
+            "{ 'asset': { 'name': str, 'primitive': 'cube'|'sphere'|'cylinder'|'plane', 'scale': [x,y,z] }, "
+            "  'options': { 'shading': 'flat'|'smooth', 'author': str, 'tags': [str, ...] } }"
+        )
+
+        headers = {"Content-Type": "application/json"}
+        
+        payload = {
+            "contents": [
+                {"parts": [{"text": f"{system_prompt}\n\nUser Prompt: {prompt}"}]}
+            ],
+            "generationConfig": {
+                "response_mime_type": "application/json",
+            }
+        }
+
+        try:
+            response = requests.post(self.url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            content = data["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(content)
+        except Exception as e:
+            raise RuntimeError(f"Gemini API request failed: {e}")
+
 def get_connector(provider: str, model: str = None) -> LLMConnector:
     """Factory function to get the appropriate connector."""
-    if provider == "openai":
+    p = provider.lower()
+    if p == "openai":
         return OpenAIConnector(model=model or "gpt-4o-mini")
-    elif provider == "mock":
+    elif p == "gemini":
+        return GeminiConnector(model=model or "gemini-1.5-flash")
+    elif p == "mock":
         return MockConnector()
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
