@@ -19,13 +19,10 @@ def write_manifest(package_path, asset_name, primitive, scale,
     """
     Writes a manifest.json file to the package directory.
     """
-    manifest_timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+    manifest_timestamp = datetime.datetime.now(datetime.UTC).isoformat() + "Z"
     asset_id = str(uuid.uuid4())
     
-    # 1. Build base tags
     final_tags = ["generated", "mvp", "prop", primitive.lower()]
-    
-    # 2. Add user-provided tags
     if tags:
         for t in tags:
             t_clean = t.strip().lower()
@@ -57,7 +54,6 @@ def write_manifest(package_path, asset_name, primitive, scale,
     
     if preview_file:
         manifest["preview_image"] = preview_file
-        
     if geometry_stats:
         manifest["geometry_stats"] = geometry_stats
         
@@ -66,3 +62,24 @@ def write_manifest(package_path, asset_name, primitive, scale,
         json.dump(manifest, f, indent=4)
         
     return manifest_path
+
+def write_run_report(output_dir, run_metadata, asset_results):
+    """
+    Writes a summary run_report.json to the output directory.
+    Non-fatal if writing fails.
+    """
+    report = {
+        "run_metadata": run_metadata,
+        "assets": asset_results
+    }
+    
+    report_path = os.path.join(output_dir, "run_report.json")
+    try:
+        # Ensure output dir exists (it should, but just in case)
+        os.makedirs(output_dir, exist_ok=True)
+        with open(report_path, 'w') as f:
+            json.dump(report, f, indent=4)
+        return report_path
+    except Exception as e:
+        print(f"Forge: WARNING - Could not write run report to {report_path}: {e}")
+        return None
