@@ -21,7 +21,8 @@ def write_manifest(package_path, asset_name, primitive, scale,
                    creation_command=None, geometry_stats=None, 
                    parametric_options=None, source_type="primitive",
                    experimental_mode=False, llm_metadata=None, 
-                   entry_point=None, format="obj", archive_file=None, version="1.0.0"):
+                   entry_point=None, format="obj", archive_file=None, 
+                   validation_results=None, version="1.0.0"):
     """
     Writes a manifest.json file to the package directory.
     """
@@ -75,6 +76,8 @@ def write_manifest(package_path, asset_name, primitive, scale,
         manifest["preview_image"] = preview_file
     if geometry_stats:
         manifest["geometry_stats"] = geometry_stats
+    if validation_results:
+        manifest["validation_results"] = validation_results
         
     manifest_path = os.path.join(package_path, "manifest.json")
     with open(manifest_path, 'w') as f:
@@ -186,17 +189,14 @@ def prune_stale_assets(output_root, dry_run=False):
     except Exception as e:
         raise RuntimeError(f"Could not read registry: {e}")
 
-    # 1. Collect all referenced paths (Normalize to just the top-level name in output_root)
     referenced_items = set()
     for a in registry.get("assets", []):
         for field in ["package_path", "archive_path", "entry_point", "preview_path"]:
             val = a.get(field)
             if val:
-                # Get the first part of the path (the folder or the zip file name)
                 top_level = val.split(os.sep)[0]
                 referenced_items.add(top_level)
 
-    # 2. Identify stale items
     all_on_disk = os.listdir(output_root)
     to_remove = []
     protected = []
@@ -214,7 +214,6 @@ def prune_stale_assets(output_root, dry_run=False):
         else:
             protected.append(item)
 
-    # 3. Output logic
     if dry_run:
         print("\n--- PRUNE DRY RUN ---")
         print("Protected items (preserved):")
