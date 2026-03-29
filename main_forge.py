@@ -3,15 +3,16 @@ import os
 import sys
 import json
 import re
+import datetime
 from forge.generator import generate_bpy_script
-from forge.packager import prepare_package_dir, write_manifest
+from forge.packager import prepare_package_dir, write_manifest, write_run_report
 from forge.agent import interpret_prompt
 from blender.headless import execute_headless_blender
 
 def forge_item(asset_params, options, global_command, dry_run=False):
     """
     Processes a single asset request.
-    Returns (bool success, str message)
+    Returns (bool success, str message, dict result_info)
     """
     name = asset_params.get("name", "prop")
     primitive = asset_params.get("primitive", "cube")
@@ -23,21 +24,31 @@ def forge_item(asset_params, options, global_command, dry_run=False):
     no_preview = options.get("no_preview", False)
     tags_list = options.get("tags", [])
 
+    result_info = {
+        "name": name,
+        "primitive": primitive,
+        "status": "failed",
+        "package_path": None,
+        "preview_path": None,
+        "error": None
+    }
+
     print(f"\n>>> Forge Item: '{name}' ({primitive}) <<<")
     
     if dry_run:
-        print(f"DRY RUN: Would create '{name}' as a {primitive} with {shading} shading.")
-        print(f"DRY RUN: Scale: {scale_tuple}, Author: {author}, Output: {output_dir}")
-        return True, "Dry run successful"
+        print(f"DRY RUN: Validation passed for '{name}' as a {primitive}.")
+        result_info["status"] = "dry_run"
+        return True, "Dry run successful", result_info
 
     # 1. Prepare Package Directory
     try:
         package_path = prepare_package_dir(output_dir, name)
+        result_info["package_path"] = os.path.relpath(package_path, output_dir)
         print(f"Forge: Created package directory: {package_path}")
     except Exception as e:
-        return False, f"Package directory creation failed: {e}"
+        result_info["error"] = str(e)
+        return False, f"Package directory creation failed: {e}", result_info
         
-    # Standard names
     asset_file = "asset.obj"
     asset_path = os.path.join(package_path, asset_file)
     preview_file = "preview.png"
@@ -53,11 +64,11 @@ def forge_item(asset_params, options, global_command, dry_run=False):
     print(f"Forge: Executing Blender headless ({primitive} @ {shading} shading)...")
     result = execute_headless_blender(bpy_script, timeout=60)
     
-    # 3. Handle Result and Finalize Manifest
+    # 3. Handle Result
     if result.get("status") == "success":
         print(f"Forge: Blender execution SUCCESS.")
         
-        # --- Stats Extraction ---
+        # Stats Extraction
         geometry_stats = None
         blender_stdout = result.get("result", {}).get("result", "")
         match = re.search(r"FORGE_STATS: ({.*})", blender_stdout)
@@ -65,18 +76,16 @@ def forge_item(asset_params, options, global_command, dry_run=False):
             try:
                 geometry_stats = json.loads(match.group(1))
                 print(f"Forge: Extracted stats - Vertices: {geometry_stats.get('vertex_count')}, Faces: {geometry_stats.get('face_count')}")
-            except Exception as e:
-                print(f"Forge: WARNING - Could not parse geometry stats: {e}")
-        else:
-            print(f"Forge: WARNING - No geometry stats found in Blender output.")
+            except Exception: pass
 
-        # --- Preview Check ---
+        # Preview Check
         final_preview = None
         if preview_path and os.path.exists(preview_path):
             final_preview = preview_file
+            result_info["preview_path"] = os.path.join(result_info["package_path"], preview_file)
             print(f"Forge: Preview rendered successfully.")
             
-        manifest_path = write_manifest(
+        write_manifest(
             package_path, name, primitive, scale_tuple, 
             tags=tags_list,
             preview_file=final_preview,
@@ -84,18 +93,22 @@ def forge_item(asset_params, options, global_command, dry_run=False):
             creation_command=global_command,
             geometry_stats=geometry_stats
         )
-        print(f"Forge: Manifest written to {manifest_path}")
-        print(f"Forge: Successfully packaged '{name}' in {package_path}")
-        return True, "Success"
+        print(f"Forge: Successfully packaged '{name}'")
+        result_info["status"] = "success"
+        return True, "Success", result_info
     else:
         err_msg = result.get('message', 'Unknown Blender error')
         print(f"Forge: Blender execution FAILED: {err_msg}")
-        return False, err_msg
+        result_info["error"] = err_msg
+        return False, err_msg, result_info
 
 def main():
     parser = argparse.ArgumentParser(description="MStorm Asset Forge - OBJ Baseline Pipeline")
     parser.add_argument("-f", "--file", type=str, help="Path to a JSON request file")
     parser.add_argument("-p", "--prompt", type=str, help="Natural language request")
+    parser.add_argument("--llm", action="store_true", help="Use LLM for prompt interpretation")
+    parser.add_argument("--provider", type=str, default="openai", choices=["openai", "mock"], help="LLM provider")
+    parser.add_argument("--model", type=str, help="LLM model name")
     parser.add_argument("--dry-run", action="store_true", help="Interpret and validate without running Blender")
     parser.add_argument("--name", type=str, help="Asset name")
     parser.add_argument("--primitive", type=str, choices=["cube", "sphere", "cylinder", "plane"], help="Primitive type")
@@ -113,11 +126,12 @@ def main():
 
     # 1. Resolve Requests
     if args.prompt:
-        print(f"Agent: Interpreting prompt: '{args.prompt}'...")
-        req, msg = interpret_prompt(args.prompt)
+        print(f"Agent: Interpreting prompt: '{args.prompt}' (Mode: {'LLM' if args.llm else 'Rule-based'})...")
+        req, msg = interpret_prompt(args.prompt, use_llm=args.llm, provider=args.provider, model=args.model)
         if not req:
             print(f"Agent Error: {msg}")
             sys.exit(1)
+        
         print(f"Agent: Success.")
         print(json.dumps(req, indent=2))
         requests = [req]
@@ -151,7 +165,8 @@ def main():
     # 2. Process Requests
     total = len(requests)
     is_batch = total > 1
-    results = []
+    asset_results = []
+    output_dir_final = "outputs"
 
     if args.dry_run:
         print("--- DRY RUN MODE ENABLED ---")
@@ -168,13 +183,18 @@ def main():
             if "primitive" not in asset_data: missing.append("asset.primitive")
             if missing:
                 print(f"\n[Item {i}] Error: Missing required fields: {', '.join(missing)}")
-                results.append((False, asset_data.get("name", f"item_{i}"), "Missing fields"))
+                asset_results.append({
+                    "index": i, "name": asset_data.get("name", f"item_{i}"), 
+                    "status": "failed", "error": "Missing required fields"
+                })
                 continue
 
         if args.output_dir is not None: options_data["output_dir"] = args.output_dir
         if args.no_preview is not None: options_data["no_preview"] = args.no_preview
         if args.author is not None: options_data["author"] = args.author
         
+        output_dir_final = options_data.get("output_dir", "outputs")
+
         if not is_batch:
             if args.name is not None: asset_data["name"] = args.name
             if args.primitive is not None: asset_data["primitive"] = args.primitive
@@ -183,23 +203,34 @@ def main():
             if args.tags is not None: 
                 options_data["tags"] = [t.strip() for t in args.tags.split(",") if t.strip()]
 
-        success, msg = forge_item(asset_data, options_data, full_command, dry_run=args.dry_run)
-        results.append((success, asset_data.get("name"), msg))
+        success, msg, result_info = forge_item(asset_data, options_data, full_command, dry_run=args.dry_run)
+        result_info["index"] = i
+        asset_results.append(result_info)
 
-    # 3. Final Summary
-    success_count = sum(1 for r in results if r[0])
+    # 3. Final Summary & Report
+    success_count = sum(1 for r in asset_results if r["status"] in ["success", "dry_run"])
     fail_count = total - success_count
+
+    run_metadata = {
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat() + "Z",
+        "command": full_command,
+        "output_dir": output_dir_final,
+        "total_count": total,
+        "success_count": success_count,
+        "fail_count": fail_count
+    }
 
     print(f"\n--- MStorm Asset Forge: {'BATCH ' if is_batch else ''}COMPLETE ---")
     print(f"Total:   {total}")
     print(f"Success: {success_count}")
     print(f"Failed:  {fail_count}")
     
+    if not args.dry_run:
+        report_path = write_run_report(output_dir_final, run_metadata, asset_results)
+        if report_path:
+            print(f"Forge: Run report written to {report_path}")
+
     if fail_count > 0:
-        print("\nFailures:")
-        for i, (success, name, msg) in enumerate(results):
-            if not success:
-                print(f" - [Index {i}] {name}: {msg}")
         sys.exit(1)
 
 if __name__ == "__main__":

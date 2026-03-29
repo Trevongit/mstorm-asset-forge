@@ -1,22 +1,24 @@
 import re
+import json
+from .llm_connector import get_connector
 
-def interpret_prompt(prompt):
+def interpret_prompt_rule_based(prompt):
     """
-    Translates a natural language prompt into a deterministic forge request.
-    Returns (dict request, str message) or (None, error_message).
+    Translates a natural language prompt into a deterministic forge request
+    using local keyword heuristics.
     """
     if not prompt or not prompt.strip():
         return None, "Empty prompt provided."
 
     p = prompt.lower()
     
-    # 0. Unsupported Concept Check (Hard Fail)
+    # 0. Unsupported Concept Check
     unsupported = ["donut", "torus", "cone", "monkey", "suzanne", "light", "camera"]
     for word in unsupported:
         if word in p:
             return None, f"Unsupported concept detected: '{word}'. The MVP only supports basic primitives."
 
-    # 1. Identify Primitive (Required)
+    # 1. Identify Primitive
     primitive = None
     if any(word in p for word in ["cube", "box", "square"]):
         primitive = "cube"
@@ -31,15 +33,12 @@ def interpret_prompt(prompt):
         return None, f"Could not determine asset primitive from prompt: '{prompt}'"
 
     # 2. Improved Name Inference
-    # Strip known keywords and articles to find the "subject"
     noise = [
         "a", "an", "the", "make", "create", "generate", "build", "simple",
         "cube", "box", "square", "sphere", "ball", "round", "cylinder", "pillar", "tube", "plane", "floor", "ground", "flat", "sheet", "wall",
         "smooth", "polished", "soft", "matte", "rough",
         "tall", "high", "wide", "broad", "large", "huge", "small", "tiny", "thin", "pancake", "skinny", "needle"
     ]
-    
-    # Replace noise with spaces, then collapse
     name_candidate = p
     for word in noise:
         name_candidate = re.sub(rf'\b{word}\b', '', name_candidate)
@@ -51,10 +50,8 @@ def interpret_prompt(prompt):
     shading = "flat"
     if any(word in p for word in ["smooth", "polished", "soft"]):
         shading = "smooth"
-    elif any(word in p for word in ["matte", "rough", "flat"]):
-        shading = "flat"
 
-    # 4. Expanded Scale Mappings
+    # 4. Scale Mappings
     scale = [1.0, 1.0, 1.0]
     if "tall" in p or "high" in p:
         scale = [1.0, 1.0, 3.0]
@@ -69,7 +66,6 @@ def interpret_prompt(prompt):
     elif "skinny" in p or "needle" in p:
         scale = [0.1, 0.1, 2.0]
 
-    # Construct the request object
     request = {
         "asset": {
             "name": name,
@@ -78,8 +74,36 @@ def interpret_prompt(prompt):
         },
         "options": {
             "shading": shading,
-            "tags": ["nl_interpreted", "agent_v0.2"]
+            "tags": ["nl_interpreted", "rule_based"]
         }
     }
     
-    return request, f"Interpreted '{prompt}' as {primitive} ({shading})"
+    return request, f"Rule-based success: {primitive} ({shading})"
+
+def interpret_prompt(prompt, use_llm=False, provider="openai", model=None):
+    """
+    Main entry point for prompt interpretation.
+    Routes to either rule-based or LLM-based logic.
+    """
+    if not use_llm:
+        return interpret_prompt_rule_based(prompt)
+    
+    try:
+        connector = get_connector(provider, model)
+        request = connector.generate_request(prompt)
+        
+        # Basic validation of LLM output
+        if "asset" not in request:
+            return None, "LLM returned invalid structure (missing 'asset' key)."
+        
+        # Ensure tags indicate LLM provenance
+        if "options" not in request:
+            request["options"] = {}
+        if "tags" not in request["options"]:
+            request["options"]["tags"] = []
+        request["options"]["tags"].append("llm_interpreted")
+        request["options"]["tags"].append(f"provider_{provider}")
+        
+        return request, f"LLM ({provider}) success."
+    except Exception as e:
+        return None, f"LLM Error: {e}"
