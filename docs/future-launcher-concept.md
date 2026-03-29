@@ -7,12 +7,12 @@ This document outlines the conceptual vision for a graphical user interface (GUI
 ## 1. Vision: The "Zero-Friction" Forge
 The Forge is currently a high-fidelity technical tool. To expand its reach to non-technical designers, a lightweight local GUI is envisioned to surface its capabilities visually.
 
-## 2. Key Modules
+## 2. Core Modules
 
 ### One-Click Generator
-*   A "Forge Dashboard" with prominent buttons for common presets (e.g., "Dining Table", "Crate").
+*   A Dashboard with prominent buttons for common presets (e.g., "Dining Table", "Crate").
 *   Real-time parameter sliders for scale, color, and metallic properties.
-*   A playful "Demo Mode" that auto-generates variations of an asset family.
+*   A playful **"Demo Mode"** that auto-generates variations of an asset family.
 
 ### Visual Asset Gallery
 *   A visual browser powered by `registry.json`.
@@ -20,8 +20,8 @@ The Forge is currently a high-fidelity technical tool. To expand its reach to no
 *   Badges for validation status (OK/WARN), format (GLB/OBJ), and dimensions.
 
 ### Integrated Demo Viewer
-*   A 3D viewport using a lightweight GLB/OBJ viewer (e.g., Three.js or similar).
-*   Allows users to "see it working" immediately after generation without opening external DCC tools.
+*   A 3D viewport using a lightweight GLB/OBJ viewer (e.g., Three.js).
+*   Allows users to "see it working" immediately after generation.
 
 ---
 

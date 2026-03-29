@@ -12,27 +12,26 @@ The core engine of the MStorm Asset Forge is complete and hardened.
 
 ## 2) Phase 6: Archetypes & Production Scaling (Active)
 
-### Slice 5: Rich Explorer Improvements
-*   **Goal:** Make the library genuinely usable at scale.
-*   **Tasks:** 
-    *   Filtering by validation status (OK vs WARN).
-    *   Filtering by material traits (e.g., show only emissive).
-    *   Compact vs Detailed text list modes.
+### Slice 7: Guidance & Continuation (COMPLETED)
+*   **Goal:** Strengthen the handoff path for humans and agents.
+*   **Outcome:** Refined Quick-Start, MStorm Integration, and Agent Guides.
 
-### Slice 6: Asset Presets Expansion (v2)
-*   **Goal:** Expand the library of deterministic recipes.
-*   **Tasks:**
-    *   Implement more complex variants: `bookshelf_large`, `crate_slatted`, `dining_table_round`.
-    *   Refine default scaling rules for presets.
+### Slice 8: Rich Explorer Improvements
+*   **Goal:** Make the library genuinely usable at scale for daily production.
+*   **Candidate Tasks:** Filtering by validation status, material traits, or archetype. Compact vs detailed view modes.
+
+### Slice 9: Asset Presets v3 (Environment Detail)
+*   **Goal:** Expand the library of deterministic recipes for environment props.
+*   **Examples:** `bookshelf_large`, `crate_slatted`, `pillar_round_base`.
 
 ---
 
 ## 3) Suggested Next 5 Development Moves
-1.  **Enhance Explorer UX:** (Slice 5) Improve searchability for artists.
-2.  **Harden Validation Profiles:** (Slice 6) Stricter rules for "production-ready" GLBs.
-3.  **Expand Presets:** Add 5 more high-quality deterministic furniture archetypes.
-4.  **Refine Sync Tooling:** Support "exclude" patterns for project mirroring.
-5.  **Launcher Prototype (Phase 7):** Begin the local-first GUI wrapper concept.
+1.  **Enhance Explorer UX:** (Slice 8) Improve searchability for artists.
+2.  **Expand Presets:** Add 5 more high-quality deterministic furniture archetypes.
+3.  **Refine Sync Tooling:** Support "exclude" patterns for project mirroring.
+4.  **Integration Bridge:** (Conceptual) A bridge plugin for MStorm Studio.
+5.  **Launcher Wrapper:** (Phase 7) Begin the local-first GUI wrapper concept.
 
 ## 4) Rules For Future Contributors And Agents
 To maintain the integrity of the forge, all contributors must follow these rules:
@@ -40,13 +39,13 @@ To maintain the integrity of the forge, all contributors must follow these rules
 1.  **Repo Truth Pass:** Always verify the current committed hashes and tree state before writing code.
 2.  **Surgical Slices:** Prefer narrow, verifiable logical slices over broad speculative rewrites.
 3.  **Discovery vs Truth:** Keep `registry.json` lean (discovery) and `manifest.json` detailed (per-asset truth).
-4.  **Documentation Handoff:** Update the Brain and `docs/` whenever a slice changes a contract or adds a capability.
-5.  **No Speculation:** Do not imply that unbuilt GUI or plugin features exist in production-facing docs.
-6.  **Deterministic Priority:** Maintain the stability of the deterministic generation path as the primary feature.
+4.  **No Speculation:** Do not imply that unbuilt GUI or plugin features exist in production-facing docs.
+5.  **Deterministic Priority:** Maintain the stability of the deterministic generation path.
+6.  **State Distinction:** clearly distinguish between **Committed Reality** and **Planned Future Work**.
 
 ---
 
 ## How To Continue Development Without Rediscovery
-*   **Verify State:** Use `python3 main_forge.py --list` to see what the forge is currently indexing.
-*   **Read Contract:** Check `docs/forge-contract.md` for the current data schema.
-*   **Distinguish:** Clearly separate **Committed Reality** from the **Conceptual Roadmap**.
+*   **Verify State:** Use `python3 main_forge.py --list` to see the current library.
+*   **Read Contract:** Check `docs/forge-contract.md` for the data schema.
+*   **Stick to the Roadmap:** Follow the logical slices defined in Phase 6.

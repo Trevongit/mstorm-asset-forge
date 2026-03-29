@@ -2,34 +2,38 @@
 
 Follow this path for immediate success with the **MStorm Asset Forge**.
 
-## 1. First Successful Command
-Generate a high-quality GLB sphere with PBR materials.
+## 1. First Successful Commands
 
+### Generate a simple asset
 ```bash
-python3 main_forge.py --name "first_asset" --primitive "sphere" --format "glb" --color "#00AAFF" --metallic 0.8 --roughness 0.2
+python3 main_forge.py --name "cube01" --primitive "cube" --format "glb"
 ```
 
-## 2. Recommended Daily Workflow
+### Generate a complex preset (Happy Path)
+```bash
+python3 main_forge.py --name "dining_table" --preset "dining_table_basic" --format "glb" --color "#442211"
+```
 
-### Browse Your Library
-List all assets, sorted by date (newest first).
+## 2. Browse and Inspect
+
+### List Assets
+Shows all generated assets, newest first.
 ```bash
 python3 main_forge.py --list
 ```
 
-### Inspect Technical Truth
-View the full manifest metadata for a specific asset in JSON format.
+### View Detailed Truth
 ```bash
-python3 main_forge.py --info "first_asset" --json
+python3 main_forge.py --info "dining_table" --json
 ```
 
-### Handoff to Studio
-Sync your validated assets to an external project directory.
+## 3. Sync to Your Project
+Handoff your validated assets to an external project directory.
 ```bash
-python3 main_forge.py --sync "../MyStudioProject/Assets/"
+python3 main_forge.py --sync "../MyProject/Assets/"
 ```
 
-### Library Maintenance
+## 4. Maintenance
 Dry-run cleanup to see what stale packages would be removed.
 ```bash
 python3 main_forge.py --prune --dry-run
@@ -37,9 +41,7 @@ python3 main_forge.py --prune --dry-run
 
 ---
 
-## 3. "Just Want To See It Work?"
-If you want to see the forge build a complex assembly immediately:
-```bash
-python3 main_forge.py --name "demo_chair" --preset "chair_basic" --format "glb" --color "#AA3333"
-```
-This command exercises the assembly logic, PBR contract, and GLB export in one move.
+## Recommended Daily Workflow
+1.  **Generate** using `--format glb` for best quality production handoff.
+2.  **Verify** using `--list` to check validation status and dimensions.
+3.  **Handoff** using `--sync` to mirror into your production environment.

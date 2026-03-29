@@ -8,7 +8,7 @@ The **MStorm Asset Forge** is a local-first bridge for generating and assembling
 ## Fastest Way To See It Work
 1.  **Requirement:** Blender 4.0+ in your `PATH`.
 2.  **Install:** `pip install -r requirements.txt`
-3.  **Generate a shiny gold sphere (GLB):**
+3.  **Generate a gold sphere (GLB):**
     ```bash
     python3 main_forge.py --name "gold_orb" --primitive "sphere" --format "glb" --color "#FFD700" --metallic 1.0
     ```
@@ -17,13 +17,13 @@ The **MStorm Asset Forge** is a local-first bridge for generating and assembling
     python3 main_forge.py --list
     ```
 
-## Documentation & Guidance
+## Engineering Resources
 *   **[Quick-Start Guide](docs/quick-start.md):** The minimal success path for new users.
-*   **[MStorm Integration](docs/mstorm-integration.md):** Engineering contract for Studio and external tool integration.
+*   **[MStorm Integration](docs/mstorm-integration.md):** How MStorm should consume the forge.
 *   **[Package Contract](docs/forge-contract.md):** Technical specification for inputs and outputs.
 *   **[Engineering Roadmap](docs/engineering-roadmap.md):** Planned phases and development slices.
-*   **[Future Concept: GUI](docs/future-launcher-concept.md):** Conceptual vision for a one-click launcher and viewer.
-*   **[Development Guide](docs/development-continuation-guide.md):** Essential rules for engineers and agents.
+*   **[Development Guide](docs/development-continuation-guide.md):** Continuation rules for agents and contributors.
+*   **[Future Concept: GUI](docs/future-launcher-concept.md):** Vision for a one-click launcher and viewer.
 
 ## Attribution & License
 Standalone local fork and adaptation of the **LL3M** project (University of Chicago).
