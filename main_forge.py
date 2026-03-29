@@ -105,6 +105,22 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
     if result.get("status") == "success":
         print(f"Forge: Blender execution SUCCESS.")
         
+        # --- Artifact Integrity Gate ---
+        if not os.path.exists(asset_path):
+            result_info["status"] = "failed"
+            result_info["error"] = f"Integrity Failure: Entry point file {asset_file} was not created."
+            print(f"Forge: {result_info['error']}")
+            return False, result_info["error"], result_info
+            
+        if os.path.getsize(asset_path) == 0:
+            result_info["status"] = "failed"
+            result_info["error"] = f"Integrity Failure: Entry point file {asset_file} is empty (0 bytes)."
+            print(f"Forge: {result_info['error']}")
+            return False, result_info["error"], result_info
+            
+        print(f"Forge: Artifact integrity verified ({asset_file}).")
+
+        # Stats Extraction
         geometry_stats = None
         blender_stdout = result.get("result", {}).get("result", "")
         match = re.search(r"FORGE_STATS: ({.*})", blender_stdout)
