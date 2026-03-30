@@ -15,7 +15,7 @@ Current focus is on making the library genuinely usable at scale.
 
 * [x] **Asset Presets v2:** 10+ deterministic recipes implemented.
 * [x] **Validation Profiles:** mobile/standard/high_fidelity gates.
-* [x] **Registry Enrichment:** dimensions and material traits indexed.
+* [x] **Registry Enrichment:** Enriched discovery layer with dimensions, materials, and profiles.
 * [x] **Guidance & Integration:** (Current) refined documentation for Studio and Agents.
 
 ## 3) Suggested Next 5 Development Moves

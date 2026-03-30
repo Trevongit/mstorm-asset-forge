@@ -66,17 +66,23 @@ outputs/
     └── preview.png     # Rendered preview (Optional, non-fatal)
 ```
 
-### Registry Responsibilities
-The `registry.json` is the **discovery layer** for external tools (e.g., MStorm Studio plugins).
-*   **Enriched Fields:** `validation_profile`, `dimensions` (WxDxH), `material_summary` (Color/Metal/Rough/Emit), and `preset`.
-*   **Rule:** Keep it lightweight. Programmatic consumers should scan the registry first, only reading individual `manifest.json` files for deep detail (e.g., provenance, raw face counts).
+### Registry Responsibilities (`registry.json`)
+The registry is the **discovery layer**, optimized for fast scanning and external bridge consumption.
+*   **Enriched Fields:** `validation_profile`, `dimensions_bbox_m` (WxDxH), `material_summary` (base_color, metallic, roughness, alpha, emission, material_name), `preset_name`, `has_preview`, and `has_archive`.
+*   **Logical Keys:** Assets are uniquely indexed by `name|category|format`.
+*   **Usage:** External tools should scan the registry first to locate assets and resolve paths.
+
+### Manifest Responsibilities (`manifest.json`)
+The manifest is the **detailed truth layer**, containing the full technical history of the asset.
+*   **Content:** Full provenance, detailed geometry stats, full validation reports, and raw deterministic input parameters.
+*   **Usage:** Consumers should read the manifest only when deep technical inspection or re-generation is required.
 
 ---
 
 ## 4. Operational Behavior
 *   **Unit System:** All scales and measurements are in **Metric (Meters)**.
 *   **Modular Props & Presets:** 
-    *   Presets (e.g., `chair_basic`, `cabinet_basic`) are deterministic recipes that resolve to compound assemblies.
+    *   Presets (e.g., `chair_basic`) are deterministic recipes that resolve to compound assemblies.
     *   *Scale:* Applied to the entire assembly after grouping.
 *   **Validation Profiles:**
     *   `mobile`: 10k faces / 10MB limit. GLB preferred.

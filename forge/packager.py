@@ -371,7 +371,7 @@ def get_library_list(output_root, category_filter=None, format_filter=None, sort
             if status == "warn" and (not is_success or not has_warnings): continue
             if status == "failed" and is_success: continue # Note: failed items rarely in registry by design
 
-        if filters.get("is_emissive") and not a.get("material_summary", {}).get("emissive"):
+        if filters.get("is_emissive") and not a.get("material_summary", {}).get("emission"):
             continue
         if filters.get("is_metallic") and a.get("material_summary", {}).get("metallic", 0) <= 0:
             continue

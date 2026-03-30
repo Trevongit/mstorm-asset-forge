@@ -246,15 +246,18 @@ def forge_item(asset_params, options, global_command, dry_run=False, llm_metadat
             "validation_success": val_success,
             "has_warnings": len(val_warnings) > 0,
             "validation_profile": val_profile,
-            "dimensions": geometry_stats.get("dimensions") if geometry_stats else None,
+            "dimensions_bbox_m": geometry_stats.get("dimensions") if geometry_stats else None,
             "material_summary": {
                 "base_color": base_color,
                 "metallic": metallic,
                 "roughness": roughness,
                 "alpha": alpha,
-                "emissive": emission_strength > 0
+                "emission": emission_strength > 0,
+                "material_name": mat_name
             },
-            "preset": preset_name
+            "preset_name": preset_name,
+            "has_preview": result_info["preview_path"] is not None,
+            "has_archive": archive_file is not None
         }
         update_global_registry(output_dir, registry_info)
         
@@ -368,14 +371,14 @@ def main():
                     val_status = "OK" if (is_success and not has_warn) else ("WARN" if has_warn else "FAIL")
                     
                     profile = f" | Profile: {a.get('validation_profile', 'std')}"
-                    dims = a.get('dimensions')
+                    dims = a.get('dimensions_bbox_m')
                     dim_str = f" | Size: {dims['x']}x{dims['y']}x{dims['z']}m" if dims else ""
-                    preset = f" | Preset: {a.get('preset')}" if a.get('preset') else ""
+                    preset = f" | Preset: {a.get('preset_name')}" if a.get('preset_name') else ""
                     
                     ms = a.get('material_summary', {})
                     mat_parts = []
                     if ms.get('metallic', 0) > 0: mat_parts.append("Metal")
-                    if ms.get('emissive'): mat_parts.append("Emit")
+                    if ms.get('emission'): mat_parts.append("Emit")
                     if ms.get('alpha', 1.0) < 1.0: mat_parts.append("Alpha")
                     mat_str = f" | Traits: {','.join(mat_parts)}" if mat_parts else ""
 
