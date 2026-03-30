@@ -10,7 +10,7 @@ Integration must follow a two-tier discovery pattern to maintain performance and
 The `outputs/registry.json` is the lightweight entry point. External tools should scan this file to populate browsers or galleries.
 
 **Registry Responsibilities:**
-*   Provide a logical index of all valid assets.
+*   Provide a flat, logical index of all valid assets.
 *   Surface high-level metadata for filtering (`dimensions`, `validation_profile`, `material_summary`).
 *   Resolve the current `package_path` for a given asset name.
 

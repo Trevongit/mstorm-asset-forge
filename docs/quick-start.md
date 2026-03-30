@@ -44,4 +44,13 @@ python3 main_forge.py --prune --dry-run
 ## Recommended Daily Workflow
 1.  **Generate** using `--format glb` for best quality production handoff.
 2.  **Verify** using `--list` to check validation status and dimensions.
-3.  **Handoff** using `--sync` to mirror into your production environment.
+3.  **Sync** using `--sync` to mirror into your production environment.
+
+---
+
+## Just Want To See It Work?
+If you want to see the forge build a complex assembly immediately:
+```bash
+python3 main_forge.py --name "demo_chair" --preset "chair_basic" --format "glb" --color "#AA3333"
+```
+Check the `outputs/` folder for your new production-ready asset.

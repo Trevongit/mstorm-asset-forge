@@ -7,7 +7,7 @@ This document outlines the conceptual vision for a graphical user interface (GUI
 ## 1. Vision: The "Zero-Friction" Forge
 The Forge is currently a high-fidelity technical tool. To expand its reach to non-technical designers, a lightweight local GUI is envisioned to surface its capabilities visually.
 
-## 2. Core Modules
+## 2. Key Modules
 
 ### One-Click Generator
 *   A Dashboard with prominent buttons for common presets (e.g., "Dining Table", "Crate").
