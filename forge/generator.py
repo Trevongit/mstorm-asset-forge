@@ -263,28 +263,86 @@ obj = bpy.context.active_object
         "primitive": "stool",
         "description": "Round stool preset",
         "bpy_code": """
-# Stool Assembly
-bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=0.1, location=(0, 0, 0.5))
-seat = bpy.context.active_object
+    # Stool Assembly
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=0.1, location=(0, 0, 0.5))
+    seat = bpy.context.active_object
 
-leg_coords = [(0.3, 0.3, 0.25), (0.3, -0.3, 0.25), (-0.3, 0.3, 0.25), (-0.3, -0.3, 0.25)]
-for lx, ly, lz in leg_coords:
+    leg_coords = [(0.3, 0.3, 0.25), (0.3, -0.3, 0.25), (-0.3, 0.3, 0.25), (-0.3, -0.3, 0.25)]
+    for lx, ly, lz in leg_coords:
     bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=0.5, location=(lx, ly, lz))
     bpy.context.active_object.parent = seat
 
-bpy.context.view_layer.objects.active = seat
-bpy.ops.object.select_all(action='DESELECT')
-seat.select_set(True)
-for child in seat.children:
+    bpy.context.view_layer.objects.active = seat
+    bpy.ops.object.select_all(action='DESELECT')
+    seat.select_set(True)
+    for child in seat.children:
     child.select_set(True)
-bpy.ops.object.join()
-obj = bpy.context.active_object
-"""
-    }
-}
+    bpy.ops.object.join()
+    obj = bpy.context.active_object
+    """
+    },
+    "bookshelf_large": {
+        "primitive": "bookshelf",
+        "description": "Large bookshelf with multiple shelves and back panel",
+        "bpy_code": """
+    # Large Bookshelf Assembly
+    # Main frame
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 1.0))
+    frame = bpy.context.active_object
+    frame.scale = (0.8, 0.2, 1.0) # Overall dimensions
 
-def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0), 
-                        shading="flat", bevel=0.0, subdivisions=0, 
+    # Shelves
+    shelf_heights = [-0.8, -0.2, 0.4, 1.0] # Relative to frame center
+    for h in shelf_heights:
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, h))
+    shelf = bpy.context.active_object
+    shelf.scale = (0.75, 0.18, 0.03)
+    shelf.parent = frame
+
+    # Back panel
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, -0.15, 1.0))
+    back = bpy.context.active_object
+    back.scale = (0.75, 0.01, 0.98)
+    back.parent = frame
+
+    bpy.context.view_layer.objects.active = frame
+    bpy.ops.object.select_all(action='DESELECT')
+    frame.select_set(True)
+    for child in frame.children:
+    child.select_set(True)
+    bpy.ops.object.join()
+    obj = bpy.context.active_object
+    """
+    },
+    "pillar_round": {
+        "primitive": "pillar",
+        "description": "Round pillar with base and top",
+        "bpy_code": """
+    # Round Pillar Assembly
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.3, depth=2.5, location=(0, 0, 1.25))
+    pillar = bpy.context.active_object
+
+    # Base and Top (simple discs)
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=0.1, location=(0, 0, 0))
+    base = bpy.context.active_object
+    base.parent = pillar
+
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.4, depth=0.1, location=(0, 0, 2.5))
+    top = bpy.context.active_object
+    top.parent = pillar
+
+    bpy.context.view_layer.objects.active = pillar
+    bpy.ops.object.select_all(action='DESELECT')
+    pillar.select_set(True)
+    for child in pillar.children:
+    child.select_set(True)
+    bpy.ops.object.join()
+    obj = bpy.context.active_object
+    """
+    }
+    }
+
+def generate_bpy_script(asset_name, primitive="cube", scale=(1.0, 1.0, 1.0),                        shading="flat", bevel=0.0, subdivisions=0, 
                         auto_smooth=False, base_color=(0.8, 0.8, 0.8), 
                         metallic=0.0, roughness=0.5,
                         emission_color=(0.0, 0.0, 0.0), emission_strength=0.0,

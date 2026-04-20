@@ -22,7 +22,7 @@ The Forge accepts a JSON file via the `--file` flag. It supports two root shapes
     "scale": [float, float, float] (Optional, default [1.0, 1.0, 1.0])
   },
   "options": {
-    "preset": "chair_basic|chair_dining|bench_basic|cabinet_basic|dining_table_basic|table_round|pillar_square|shelf_simple|crate_stackable|stool_round (Optional)",
+    "preset": "chair_basic|chair_dining|bench_basic|cabinet_basic|dining_table_basic|table_round|pillar_square|shelf_simple|crate_stackable|stool_round|bookshelf_large|pillar_round (Optional)",
     "format": "obj|glb (Optional, default 'obj')",
     "category": "string (Optional, e.g., 'furniture')",
     "zip": "boolean (Optional, default false)",
