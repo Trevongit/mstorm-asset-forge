@@ -24,6 +24,7 @@ experiments/
 *.blend1
 
 # G-Codex Runtime Artifacts
+.gcodex_*
 .gcodex_oac_prompt.txt
 .notify_enabled
 .watcher.pid
