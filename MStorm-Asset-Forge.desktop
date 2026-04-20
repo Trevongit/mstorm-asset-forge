@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MStorm Asset Forge
+Comment=Start MStorm Asset Forge from the project root
+Exec=/home/trev/PROJECTS/workspace/mstorm-asset-forge/launch_forge.sh
+Path=/home/trev/PROJECTS/workspace/mstorm-asset-forge
+Icon=/home/trev/PROJECTS/workspace/mstorm-asset-forge/assets/blender_setup.png
+Terminal=true
+StartupNotify=true
+Categories=Development;
