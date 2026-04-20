@@ -25,7 +25,7 @@ Clearly distinguish between:
 *   **Conceptual Roadmap:** Planned but unbuilt features.
 
 ### C. Documentation Handoff
-Update the Brain (`G-Codex-brain/`) and `docs/` whenever a slice changes a contract or adds a capability. Never imply that unbuilt features exist in production documentation.
+Update `docs/` whenever a slice changes a contract or adds a capability. Never imply that unbuilt features exist in production documentation.
 
 ### D. Registry-First Discovery
 Treat `registry.json` as the discovery layer. If you add a new filter to the explorer, ensure the metadata is available in the registry so you don't force an expensive manifest crawl.
@@ -35,5 +35,5 @@ Treat `registry.json` as the discovery layer. If you add a new filter to the exp
 ## 3. Recommended Workflow
 
 1.  **Verify Baseline:** Run `python3 main_forge.py --name "check" --primitive "cube" --format "glb"` to ensure the environment is healthy.
-2.  **Check Roadmap:** Proceed to `G-Codex-brain/04_ACTION_PLAN_AND_ROADMAP.md` to identify the next active slice.
+2.  **Check Roadmap:** Proceed to `docs/engineering-roadmap.md` to identify the next active slice.
 3.  **Read the Integration Doc:** Understand how the forge fits into the broader MStorm ecosystem via `docs/mstorm-integration.md`.

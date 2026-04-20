@@ -40,6 +40,7 @@ The Forge is designed to be consumed by external tools (like MStorm Studio) via 
 4.  **Explore:** `python3 main_forge.py --list --view detailed`
 
 ## Engineering Resources
+*   **[New Contributor Walkthrough](docs/new-contributor-walkthrough.md):** Frictionless setup and first-success path for engineers new to this repo.
 *   **[Quick-Start Guide](docs/quick-start.md):** The fastest success path for new users.
 *   **[MStorm Integration](docs/mstorm-integration.md):** Detailed contract for Studio and external tool integration.
 *   **[Package Contract](docs/forge-contract.md):** Technical specification for inputs and outputs.
@@ -50,3 +51,36 @@ The Forge is designed to be consumed by external tools (like MStorm Studio) via 
 Standalone local fork and adaptation of the **LL3M** project (University of Chicago).
 *   **Legal:** See [LICENSE](LICENSE) (AGPL-3.0).
 *   **Origin:** See [NOTICE.md](NOTICE.md).
+
+
+
+<!-- GCODEX_BOOTSTRAP_START -->
+## G-Codex Bootstrap
+
+This repository has been bootstrapped with the full G-Codex template stack.
+
+- Primary entry point: `./scripts/conductor.sh dashboard`
+- Ingress helper (for future clone/bootstrap workflows): `./scripts/ingress.sh`
+- Clipboard bridge watcher: `./scripts/conductor.sh watch`
+- Shared brain directory: `G-Codex-brain/`
+- Guiding manifesto: `G-Codex-brain/ENLIGHTENMENT_MANIFESTO.md`
+- Browser bridge userscript: `scripts/bridge.user.js`
+- Pure repo exit: `./scripts/remove-gcodex.sh`
+- For the clipboard bridge: `sudo apt install xclip` (Linux Mint / Ubuntu)
+
+### Local Python Environment
+
+If `.venv/` exists, activate it before running extended Python tooling:
+
+```bash
+source .venv/bin/activate
+```
+
+### First Run
+
+```bash
+./scripts/conductor.sh dashboard
+```
+
+This launches the G-Codex Control Room and starts the local brain server.
+<!-- GCODEX_BOOTSTRAP_END -->

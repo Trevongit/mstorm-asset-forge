@@ -22,3 +22,18 @@ proof_package_*/
 temp_bpy_script.py
 experiments/
 *.blend1
+
+# G-Codex Runtime Artifacts
+.gcodex_oac_prompt.txt
+.notify_enabled
+.watcher.pid
+.watcher.log
+.swarm_packet.txt
+.ambient_ingress.pid
+.ambient_ingress.parent
+.ambient_ingress.auto_start
+.md_core_state.json
+.backups/
+
+# Local Brain Safety Archives
+G-Codex-brain-archive/
